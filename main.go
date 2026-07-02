@@ -52,7 +52,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unix socket 监听失败: %v", err)
 		}
-		if err := os.Chmod(cfg.Web.Sock, 0666); err != nil {
+		if err := os.Chmod(cfg.Web.Sock, 0777); err != nil {
 			log.Fatalf("设置 sock 权限失败: %v", err)
 		}
 		go func() {
