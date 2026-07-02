@@ -11,6 +11,8 @@ import (
 
 	"lmvpn/internal/config"
 	"lmvpn/internal/db"
+	"lmvpn/internal/handler"
+	"lmvpn/internal/middleware"
 	"lmvpn/internal/vpn"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +31,14 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/ws", vpn.HandleWS)
+
+	r.POST("/api/login", handler.Login)
+
+	auth := r.Group("/api")
+	auth.Use(middleware.AuthMiddleware())
+	{
+		auth.GET("/me", handler.Me)
+	}
 
 	fs := http.FileServer(http.Dir("./dist"))
 	r.Use(func(c *gin.Context) {

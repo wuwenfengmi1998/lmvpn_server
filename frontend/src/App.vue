@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/')
+}
 </script>
 
 <template>
@@ -8,11 +16,16 @@ import HelloWorld from './components/HelloWorld.vue'
     <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
     <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
       <nav>
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/about">About</RouterLink>
+        <template v-if="authStore.isLoggedIn">
+          <RouterLink to="/admin">管理后台</RouterLink>
+          <a href="#" @click.prevent="handleLogout">退出</a>
+        </template>
+        <template v-else>
+          <RouterLink to="/login">登录</RouterLink>
+        </template>
       </nav>
     </div>
   </header>
@@ -50,6 +63,8 @@ nav a {
   display: inline-block;
   padding: 0 1rem;
   border-left: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
 }
 
 nav a:first-of-type {
