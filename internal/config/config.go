@@ -12,8 +12,15 @@ type WebConfig struct {
 	Sock string `yaml:"sock"`
 }
 
+type DatabaseConfig struct {
+	Type string `yaml:"type"`
+	Path string `yaml:"path"`
+	DSN  string `yaml:"dsn"`
+}
+
 type Config struct {
-	Web WebConfig `yaml:"web"`
+	Web      WebConfig      `yaml:"web"`
+	Database DatabaseConfig `yaml:"database"`
 }
 
 func defaultConfig() *Config {
@@ -21,6 +28,11 @@ func defaultConfig() *Config {
 		Web: WebConfig{
 			Port: 8080,
 			Sock: "/run/lmvpnweb.sock",
+		},
+		Database: DatabaseConfig{
+			Type: "sqlite",
+			Path: "data/lmvpn.db",
+			DSN:  "",
 		},
 	}
 }

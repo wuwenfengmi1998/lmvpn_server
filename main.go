@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"lmvpn/config"
+	"lmvpn/internal/config"
+	"lmvpn/internal/db"
+	"lmvpn/internal/vpn"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,18 +22,24 @@ func main() {
 		log.Fatalf("加载配置失败: %v", err)
 	}
 
+	if err := db.Init(&cfg.Database); err != nil {
+		log.Fatalf("数据库初始化失败: %v", err)
+	}
+
 	r := gin.Default()
 
-	// 静态文件服务
+	r.GET("/ws", vpn.HandleWS)
+
 	fs := http.FileServer(http.Dir("./dist"))
-	// 中间件处理路由
 	r.Use(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/ws") {
+			return
+		}
 		if strings.HasPrefix(c.Request.URL.Path, "/api") {
-			c.Next() // 继续处理API请求
+			c.Next()
 			return
 		}
 
-		// 处理静态文件
 		fs.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	})
