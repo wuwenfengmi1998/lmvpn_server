@@ -30,112 +30,54 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <h2>LmVPN 登录</h2>
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="username">用户名</label>
+  <div class="min-h-[calc(100vh-160px)] flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+      <h2 class="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
+        LmVPN 登录
+      </h2>
+      <form @submit.prevent="handleLogin" class="space-y-4">
+        <div>
+          <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            用户名
+          </label>
           <input
             id="username"
             v-model="username"
             type="text"
             placeholder="请输入用户名"
             autocomplete="username"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
           />
         </div>
-        <div class="form-group">
-          <label for="password">密码</label>
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            密码
+          </label>
           <input
             id="password"
             v-model="password"
             type="password"
             placeholder="请输入密码"
             autocomplete="current-password"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
           />
         </div>
-        <p v-if="error" class="error-msg">{{ error }}</p>
-        <button type="submit" :disabled="loading">
+        <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full py-2.5 rounded-lg font-medium text-white transition-colors
+                 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           {{ loading ? '登录中...' : '登录' }}
         </button>
       </form>
     </div>
   </div>
 </template>
-
-<style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 120px);
-}
-
-.login-card {
-  width: 100%;
-  max-width: 380px;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  background: var(--color-background);
-}
-
-.login-card h2 {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  color: var(--color-heading);
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-size: 0.9rem;
-  color: var(--color-text);
-}
-
-.form-group input {
-  width: 100%;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  font-size: 1rem;
-  background: var(--color-background);
-  color: var(--color-text);
-  box-sizing: border-box;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: var(--vt-c-indigo);
-}
-
-.error-msg {
-  color: #e74c3c;
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
-button {
-  width: 100%;
-  padding: 0.65rem;
-  border: none;
-  border-radius: 4px;
-  background: var(--vt-c-indigo);
-  color: #fff;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-</style>

@@ -9,92 +9,71 @@ function handleLogout() {
   authStore.logout()
   router.push('/')
 }
+
+const navLinks = [
+  { to: '/', label: '首页' },
+  { to: '/about', label: '关于' },
+]
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+    <header class="bg-sky-600 text-white shadow-md">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <RouterLink to="/" class="text-xl font-bold tracking-wide hover:text-sky-200 transition-colors">
+          LmVPN
+        </RouterLink>
+        <nav class="flex items-center gap-1 flex-wrap">
+          <RouterLink
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                   hover:bg-sky-500/40"
+            active-class="bg-sky-700/60"
+          >
+            {{ link.label }}
+          </RouterLink>
+          <template v-if="authStore.isLoggedIn">
+            <RouterLink
+              to="/admin"
+              class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                     hover:bg-sky-500/40"
+              active-class="bg-sky-700/60"
+            >
+              管理后台
+            </RouterLink>
+            <a
+              href="#"
+              class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                     hover:bg-red-500/40"
+              @click.prevent="handleLogout"
+            >
+              退出
+            </a>
+          </template>
+          <template v-else>
+            <RouterLink
+              to="/login"
+              class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                     hover:bg-sky-500/40"
+              active-class="bg-sky-700/60"
+            >
+              登录
+            </RouterLink>
+          </template>
+        </nav>
+      </div>
+    </header>
 
-    <div class="wrapper">
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-        <template v-if="authStore.isLoggedIn">
-          <RouterLink to="/admin">管理后台</RouterLink>
-          <a href="#" @click.prevent="handleLogout">退出</a>
-        </template>
-        <template v-else>
-          <RouterLink to="/login">登录</RouterLink>
-        </template>
-      </nav>
-    </div>
-  </header>
+    <main class="flex-1">
+      <RouterView />
+    </main>
 
-  <RouterView />
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-sm">
+      <div class="max-w-6xl mx-auto px-4">
+        <p>&copy; {{ new Date().getFullYear() }} LmVPN. All rights reserved.</p>
+      </div>
+    </footer>
+  </div>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-  color: var(--color-text);
-  text-decoration: none;
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>
