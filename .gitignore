@@ -13,6 +13,7 @@ go.work
 .DS_Store
 Thumbs.db
 
+data/
 dist/
 
 frontend/node_modules/
