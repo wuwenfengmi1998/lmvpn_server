@@ -52,14 +52,6 @@ const navLinks = [
               >
                 管理后台
               </RouterLink>
-              <RouterLink
-                to="/admin/users"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-                       hover:bg-sky-500/40"
-                active-class="bg-sky-700/60"
-              >
-                用户管理
-              </RouterLink>
             </template>
             <a
               href="#"

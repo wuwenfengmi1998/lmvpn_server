@@ -6,15 +6,37 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 const stats = ref([
-  { label: '运行时长', value: '--', unit: '', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { label: '活跃设备', value: '--', unit: '', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-  { label: '今日流量', value: '--', unit: 'GB', icon: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z' },
-  { label: '在线节点', value: '--', unit: '', icon: 'M5 12h14M12 5l7 7-7 7' },
+  { label: '运行时长', value: '--', unit: '', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', route: '' },
+  { label: '活跃设备', value: '--', unit: '', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', route: '' },
+  { label: '今日流量', value: '--', unit: 'GB', icon: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z', route: '' },
+  { label: '在线节点', value: '--', unit: '', icon: 'M5 12h14M12 5l7 7-7 7', route: '' },
+  { label: '用户总数', value: '--', unit: '', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', route: '/admin/users' },
 ])
+
+const userCount = ref<number | null>(null)
+
+async function fetchUserCount() {
+  try {
+    const res = await fetch('/api/admin/users/count', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      userCount.value = data.count
+      const stat = stats.value.find(s => s.label === '用户总数')
+      if (stat) stat.value = String(data.count)
+    }
+  } catch {}
+}
 
 onMounted(async () => {
   await authStore.fetchUser()
+  fetchUserCount()
 })
+
+function handleStatClick(route: string) {
+  if (route) router.push(route)
+}
 
 function handleLogout() {
   authStore.logout()
@@ -26,11 +48,13 @@ function handleLogout() {
   <div class="max-w-4xl mx-auto px-4 py-12">
     <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">管理后台</h2>
 
-    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-5 mb-8">
       <div
         v-for="stat in stats"
         :key="stat.label"
-        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5"
+        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 transition-colors"
+        :class="stat.route ? 'cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/20' : ''"
+        @click="handleStatClick(stat.route)"
       >
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">

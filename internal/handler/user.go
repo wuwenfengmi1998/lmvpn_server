@@ -44,6 +44,12 @@ func formatUser(u *model.User) userResponse {
 	}
 }
 
+func GetUserCount(c *gin.Context) {
+	var count int64
+	db.DB.Model(&model.User{}).Count(&count)
+	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
 func ListUsers(c *gin.Context) {
 	var users []model.User
 	db.DB.Order("id asc").Find(&users)
