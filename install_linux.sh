@@ -27,6 +27,7 @@ else
 fi
 
 echo ">>> 部署到 /opt/lmvpn..."
+systemctl stop lmvpn 2>/dev/null || true
 mkdir -p /opt/lmvpn
 cp lmvpn /opt/lmvpn/
 cp -r dist /opt/lmvpn/
@@ -52,7 +53,7 @@ EOF
 
 systemctl daemon-reload
 systemctl enable lmvpn
+systemctl restart lmvpn
 
 echo ">>> 安装完成"
-echo "启动服务: systemctl start lmvpn"
-echo "查看状态: systemctl status lmvpn"
+systemctl status lmvpn --no-pager
