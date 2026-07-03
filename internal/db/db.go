@@ -40,8 +40,12 @@ func Init(cfg *config.DatabaseConfig) error {
 		return fmt.Errorf("数据库连接失败: %w", err)
 	}
 
-	if err := DB.AutoMigrate(&model.User{}, &model.Session{}); err != nil {
+	if err := DB.AutoMigrate(&model.User{}, &model.Session{}, &model.VpnSetting{}, &model.VpnReservation{}); err != nil {
 		return fmt.Errorf("数据库迁移失败: %w", err)
+	}
+
+	if err := seedDefaultVpnSettings(); err != nil {
+		return fmt.Errorf("初始化 VPN 设置失败: %w", err)
 	}
 
 	if err := seedDefaultAdmin(cfg); err != nil {
@@ -96,6 +100,23 @@ func seedDefaultAdmin(cfg *config.DatabaseConfig) error {
 	}
 
 	return nil
+}
+
+func seedDefaultVpnSettings() error {
+	var s model.VpnSetting
+	if err := DB.First(&s, model.VpnSettingSingletonID).Error; err == nil {
+		return nil
+	}
+	s = model.VpnSetting{
+		ID:               model.VpnSettingSingletonID,
+		Enabled:          false,
+		Subnet:           "192.168.3.0/24",
+		MTU:              1420,
+		InterfaceName:    "",
+		DoLocalIPConfig:  true,
+		DoRemoteIPConfig: true,
+	}
+	return DB.Create(&s).Error
 }
 
 func generateRandomPassword(length int) (string, error) {

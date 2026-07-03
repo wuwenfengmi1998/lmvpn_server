@@ -11,8 +11,10 @@ import (
 
 	"lmvpn/internal/config"
 	"lmvpn/internal/db"
+	"lmvpn/internal/handler"
 	"lmvpn/internal/middleware"
 	"lmvpn/internal/router"
+	"lmvpn/internal/vpn"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,6 +29,11 @@ func main() {
 
 	if err := db.Init(&cfg.Database); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
+	}
+
+	vpn.VPN = vpn.NewVpnService()
+	if err := handler.ApplyVpnFromDB(vpn.VPN); err != nil {
+		log.Printf("警告: 应用 VPN 设置失败: %v", err)
 	}
 
 	r := gin.Default()

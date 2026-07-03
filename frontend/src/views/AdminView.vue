@@ -11,6 +11,7 @@ const stats = ref([
   { label: '今日流量', value: '--', unit: 'GB', icon: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z', route: '' },
   { label: '在线节点', value: '--', unit: '', icon: 'M5 12h14M12 5l7 7-7 7', route: '' },
   { label: '用户总数', value: '--', unit: '', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', route: '/admin/users' },
+  { label: 'VPN 管理', value: '配置', unit: '', icon: 'M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 4.05A12.884 12.884 0 0015 11a4 4 0 10-8 0c0 1.017.07 2.019.203 3M3 3l18 18', route: '/admin/vpn' },
 ])
 
 const userCount = ref<number | null>(null)

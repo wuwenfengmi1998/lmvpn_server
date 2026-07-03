@@ -38,6 +38,12 @@ const router = createRouter({
       component: () => import('../views/UserManageView.vue'),
       meta: { requiresAuth: true, adminOnly: true },
     },
+    {
+      path: '/admin/vpn',
+      name: 'vpn',
+      component: () => import('../views/VpnView.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
   ],
 })
 

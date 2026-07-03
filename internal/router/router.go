@@ -34,6 +34,13 @@ func Setup(r *gin.Engine) {
 		admin.PUT("/users/:id", handler.UpdateUser)
 		admin.DELETE("/users/:id", handler.DeleteUser)
 		admin.DELETE("/users/:id/sessions", handler.AdminRevokeUserSessions)
+
+		admin.GET("/vpn/settings", handler.GetVpnSettings)
+		admin.PUT("/vpn/settings", handler.UpdateVpnSettings)
+		admin.GET("/vpn/status", handler.GetVpnStatus)
+		admin.GET("/vpn/reservations", handler.ListVpnReservations)
+		admin.POST("/vpn/reservations", handler.CreateVpnReservation)
+		admin.DELETE("/vpn/reservations/:id", handler.DeleteVpnReservation)
 	}
 
 	distDir := http.Dir("./dist")
