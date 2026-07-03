@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"lmvpn/internal/handler"
@@ -43,6 +44,10 @@ func Setup(r *gin.Engine) {
 			return
 		}
 
+		path := "./dist" + c.Request.URL.Path
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			c.Request.URL.Path = "/"
+		}
 		fs.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	})
