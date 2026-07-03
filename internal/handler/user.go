@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"lmvpn/internal/db"
 	"lmvpn/internal/model"
@@ -153,6 +154,7 @@ func UpdateUser(c *gin.Context) {
 			return
 		}
 		updates["password"] = string(hash)
+		updates["token_invalid_before"] = time.Now()
 	}
 
 	if len(updates) == 0 {
@@ -163,6 +165,10 @@ func UpdateUser(c *gin.Context) {
 	if err := db.DB.Model(&user).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户失败"})
 		return
+	}
+
+	if req.Password != "" {
+		db.DB.Model(&model.Session{}).Where("user_id = ?", id).Update("invalid", true)
 	}
 
 	db.DB.First(&user, id)

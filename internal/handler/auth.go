@@ -2,12 +2,14 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"lmvpn/internal/db"
 	"lmvpn/internal/middleware"
 	"lmvpn/internal/model"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -50,9 +52,22 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := middleware.GenerateToken(user.ID, user.Username, user.Role)
+	sessionID := uuid.New().String()
+	token, err := middleware.GenerateToken(sessionID, user.ID, user.Username, user.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	session := model.Session{
+		SessionID: sessionID,
+		UserID:    user.ID,
+		IP:        c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+	if err := db.DB.Create(&session).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
 	}
 
@@ -102,10 +117,17 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
-	if err := db.DB.Model(&user).Update("password", string(hash)).Error; err != nil {
+	now := time.Now()
+	if err := db.DB.Model(&user).Updates(map[string]interface{}{
+		"password":             string(hash),
+		"token_invalid_before": now,
+	}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码修改失败"})
 		return
 	}
+
+	sessionID, _ := c.Get("session_id")
+	db.DB.Model(&model.Session{}).Where("user_id = ? AND session_id != ?", userID, sessionID).Update("invalid", true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "密码修改成功"})
 }

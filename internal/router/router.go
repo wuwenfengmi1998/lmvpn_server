@@ -22,6 +22,8 @@ func Setup(r *gin.Engine) {
 	{
 		auth.GET("/me", handler.Me)
 		auth.PUT("/me/password", handler.ChangePassword)
+		auth.GET("/me/sessions", handler.ListMySessions)
+		auth.DELETE("/me/sessions/:sessionId", handler.RevokeMySession)
 	}
 
 	admin := r.Group("/api/admin")
@@ -32,6 +34,7 @@ func Setup(r *gin.Engine) {
 		admin.POST("/users", handler.CreateUser)
 		admin.PUT("/users/:id", handler.UpdateUser)
 		admin.DELETE("/users/:id", handler.DeleteUser)
+		admin.DELETE("/users/:id/sessions", handler.AdminRevokeUserSessions)
 	}
 
 	fs := http.FileServer(http.Dir("./dist"))
