@@ -21,10 +21,22 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue'),
     },
     {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/ProfileView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('../views/AdminView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
+      path: '/admin/users',
+      name: 'users',
+      component: () => import('../views/UserManageView.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
     },
   ],
 })
@@ -34,8 +46,10 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.requiresAuth && !authStore.isLoggedIn) {
     next({ name: 'login' })
+  } else if (to.meta.adminOnly && authStore.user?.role !== 'admin') {
+    next({ name: 'profile' })
   } else if (to.name === 'login' && authStore.isLoggedIn) {
-    next({ name: 'admin' })
+    next({ name: 'profile' })
   } else {
     next()
   }

@@ -20,6 +20,16 @@ func Setup(r *gin.Engine) {
 	auth.Use(middleware.AuthMiddleware())
 	{
 		auth.GET("/me", handler.Me)
+		auth.PUT("/me/password", handler.ChangePassword)
+	}
+
+	admin := r.Group("/api/admin")
+	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
+	{
+		admin.GET("/users", handler.ListUsers)
+		admin.POST("/users", handler.CreateUser)
+		admin.PUT("/users/:id", handler.UpdateUser)
+		admin.DELETE("/users/:id", handler.DeleteUser)
 	}
 
 	fs := http.FileServer(http.Dir("./dist"))
