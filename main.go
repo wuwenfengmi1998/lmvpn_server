@@ -5,10 +5,13 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 
 	"lmvpn/internal/config"
 	"lmvpn/internal/db"
+	"lmvpn/internal/middleware"
 	"lmvpn/internal/router"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +22,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
+
+	middleware.SetJWTSecret(cfg.Web.JWTSecret)
 
 	if err := db.Init(&cfg.Database); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
@@ -45,15 +50,22 @@ func main() {
 		if err := os.Remove(cfg.Web.Sock); err != nil && !os.IsNotExist(err) {
 			log.Fatalf("删除残留 sock 文件失败: %v", err)
 		}
-		if err := os.MkdirAll(filepath.Dir(cfg.Web.Sock), 0777); err != nil {
+		dirMode := parseFileMode(cfg.Web.SockDirMode, 0755)
+		if err := os.MkdirAll(filepath.Dir(cfg.Web.Sock), dirMode); err != nil {
 			log.Fatalf("创建 sock 目录失败: %v", err)
 		}
 		listener, err := net.Listen("unix", cfg.Web.Sock)
 		if err != nil {
 			log.Fatalf("Unix socket 监听失败: %v", err)
 		}
-		if err := os.Chmod(cfg.Web.Sock, 0777); err != nil {
-			log.Fatalf("设置 sock 权限失败: %v", err)
+		sockMode := parseFileMode(cfg.Web.SockMode, 0666)
+		if err := os.Chmod(cfg.Web.Sock, sockMode); err != nil {
+			log.Printf("警告: 设置 sock 权限失败: %v", err)
+		}
+		if cfg.Web.SockGroup != "" {
+			if err := chownGroup(cfg.Web.Sock, cfg.Web.SockGroup); err != nil {
+				log.Printf("警告: 设置 sock group 失败: %v", err)
+			}
 		}
 		go func() {
 			log.Printf("Unix socket 监听 %s", cfg.Web.Sock)
@@ -64,4 +76,28 @@ func main() {
 	}
 
 	select {}
+}
+
+func parseFileMode(s string, defaultMode os.FileMode) os.FileMode {
+	if s == "" {
+		return defaultMode
+	}
+	m, err := strconv.ParseUint(s, 8, 32)
+	if err != nil {
+		log.Printf("警告: 解析文件权限 %q 失败，使用默认值 %o: %v", s, defaultMode, err)
+		return defaultMode
+	}
+	return os.FileMode(m)
+}
+
+func chownGroup(path, group string) error {
+	g, err := user.LookupGroup(group)
+	if err != nil {
+		return err
+	}
+	gid, err := strconv.Atoi(g.Gid)
+	if err != nil {
+		return err
+	}
+	return os.Chown(path, -1, gid)
 }

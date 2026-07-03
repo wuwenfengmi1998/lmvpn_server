@@ -45,6 +45,12 @@ func formatUser(u *model.User) userResponse {
 	}
 }
 
+var validRoles = map[string]bool{"admin": true, "user": true}
+
+func isValidRole(role string) bool {
+	return validRoles[role]
+}
+
 func GetUserCount(c *gin.Context) {
 	var count int64
 	db.DB.Model(&model.User{}).Count(&count)
@@ -89,6 +95,10 @@ func CreateUser(c *gin.Context) {
 		Status:   1,
 	}
 	if req.Role != "" {
+		if !isValidRole(req.Role) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "角色无效，仅支持 admin 或 user"})
+			return
+		}
 		user.Role = req.Role
 	}
 	if req.Status != nil {
@@ -132,6 +142,10 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	if req.Role != "" {
+		if !isValidRole(req.Role) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "角色无效，仅支持 admin 或 user"})
+			return
+		}
 		if user.ID == currentUserID.(uint) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "不能修改自己的角色"})
 			return
@@ -167,7 +181,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if req.Password != "" {
+	if req.Password != "" || req.Role != "" || req.Status != nil {
 		db.DB.Model(&model.Session{}).Where("user_id = ?", id).Update("invalid", true)
 	}
 

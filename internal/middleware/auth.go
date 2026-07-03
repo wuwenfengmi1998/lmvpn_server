@@ -12,10 +12,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const (
-	jwtSecret   = "lmvpn-jwt-secret-key-2024"
-	tokenExpire = 24 * time.Hour
-)
+const tokenExpire = 24 * time.Hour
+
+var jwtSecret []byte
+
+func SetJWTSecret(secret string) {
+	jwtSecret = []byte(secret)
+}
 
 type Claims struct {
 	SessionID string `json:"session_id,omitempty"`
@@ -38,12 +41,12 @@ func GenerateToken(sessionID string, userID uint, username, role string) (string
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(jwtSecret))
+	return token.SignedString(jwtSecret)
 }
 
 func ParseToken(tokenStr string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
+		return jwtSecret, nil
 	})
 	if err != nil {
 		return nil, err
@@ -131,7 +134,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
-		c.Set("role", claims.Role)
+		c.Set("role", user.Role)
 		c.Set("session_id", claims.SessionID)
 		c.Next()
 	}

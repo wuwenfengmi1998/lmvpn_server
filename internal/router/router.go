@@ -2,7 +2,6 @@ package router
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"lmvpn/internal/handler"
@@ -15,7 +14,7 @@ import (
 func Setup(r *gin.Engine) {
 	r.GET("/ws", vpn.HandleWS)
 
-	r.POST("/api/login", handler.Login)
+	r.POST("/api/login", middleware.LoginRateLimit(), handler.Login)
 
 	auth := r.Group("/api")
 	auth.Use(middleware.AuthMiddleware())
@@ -37,21 +36,21 @@ func Setup(r *gin.Engine) {
 		admin.DELETE("/users/:id/sessions", handler.AdminRevokeUserSessions)
 	}
 
-	fs := http.FileServer(http.Dir("./dist"))
-	r.Use(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/ws") {
+	distDir := http.Dir("./dist")
+	fs := http.FileServer(distDir)
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api") || strings.HasPrefix(path, "/ws") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
-		if strings.HasPrefix(c.Request.URL.Path, "/api") {
-			c.Next()
+		f, err := distDir.Open(path)
+		if err != nil {
+			c.Header("Content-Type", "text/html")
+			c.File("./dist/index.html")
 			return
 		}
-
-		path := "./dist" + c.Request.URL.Path
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			c.Request.URL.Path = "/"
-		}
+		f.Close()
 		fs.ServeHTTP(c.Writer, c.Request)
-		c.Abort()
 	})
 }

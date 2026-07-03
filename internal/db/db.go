@@ -1,8 +1,12 @@
 package db
 
 import (
+	cryptorand "crypto/rand"
 	"fmt"
 	"log"
+	"math/big"
+	"os"
+	"path/filepath"
 
 	"lmvpn/internal/config"
 	"lmvpn/internal/model"
@@ -40,7 +44,7 @@ func Init(cfg *config.DatabaseConfig) error {
 		return fmt.Errorf("数据库迁移失败: %w", err)
 	}
 
-	if err := seedDefaultAdmin(); err != nil {
+	if err := seedDefaultAdmin(cfg); err != nil {
 		return fmt.Errorf("创建默认管理员失败: %w", err)
 	}
 
@@ -48,14 +52,19 @@ func Init(cfg *config.DatabaseConfig) error {
 	return nil
 }
 
-func seedDefaultAdmin() error {
+func seedDefaultAdmin(cfg *config.DatabaseConfig) error {
 	var count int64
 	DB.Model(&model.User{}).Count(&count)
 	if count > 0 {
 		return nil
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	password, err := generateRandomPassword(16)
+	if err != nil {
+		return err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
@@ -71,6 +80,33 @@ func seedDefaultAdmin() error {
 		return err
 	}
 
-	log.Println("已创建默认管理员: admin / admin123")
+	fmt.Println("========================================")
+	fmt.Println("已创建默认管理员账户")
+	fmt.Println("用户名: admin")
+	fmt.Println("密码: " + password)
+	fmt.Println("请登录后立即修改密码！")
+	fmt.Println("========================================")
+
+	dbDir := filepath.Dir(cfg.Path)
+	pwdFile := filepath.Join(dbDir, ".initial_admin_password")
+	if err := os.WriteFile(pwdFile, []byte("admin:"+password+"\n"), 0600); err != nil {
+		log.Printf("警告: 写入初始密码文件失败: %v", err)
+	} else {
+		log.Printf("初始密码已写入 %s，请登录后删除此文件", pwdFile)
+	}
+
 	return nil
+}
+
+func generateRandomPassword(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, length)
+	for i := range b {
+		n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = charset[n.Int64()]
+	}
+	return string(b), nil
 }
