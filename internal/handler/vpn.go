@@ -187,6 +187,10 @@ func GetVpnStatus(c *gin.Context) {
 	})
 }
 
+func GetVpnDiag(c *gin.Context) {
+	c.JSON(http.StatusOK, vpn.Diag(vpn.VPN))
+}
+
 type reservationResponse struct {
 	ID        uint   `json:"id"`
 	UserID    uint   `json:"user_id"`

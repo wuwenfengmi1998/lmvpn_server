@@ -37,11 +37,25 @@ interface User {
   id: number
   username: string
 }
+interface Diag {
+  platform: string
+  is_root: boolean
+  has_cap_net_admin: boolean | null
+  cap_net_admin_note?: string
+  ip_forward: boolean | null
+  ip_forward_note?: string
+  masquerade: boolean | null
+  masquerade_note?: string
+  tun_create: string
+  tun_running: boolean
+  tun_name?: string
+}
 
 const settings = ref<Settings | null>(null)
 const status = ref<Status | null>(null)
 const reservations = ref<Reservation[]>([])
 const users = ref<User[]>([])
+const diag = ref<Diag | null>(null)
 const loading = ref(false)
 const error = ref('')
 const saving = ref(false)
@@ -101,6 +115,16 @@ async function fetchUsers() {
   }
 }
 
+async function fetchDiag() {
+  try {
+    const res = await fetch('/api/admin/vpn/diag', { headers: authHeader() })
+    if (!res.ok) throw new Error('加载失败')
+    diag.value = await res.json()
+  } catch (e: any) {
+    error.value = e.message
+  }
+}
+
 async function handleSave() {
   saving.value = true
   saveMsg.value = ''
@@ -113,7 +137,7 @@ async function handleSave() {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || '保存失败')
     saveMsg.value = '保存成功'
-    await Promise.all([fetchSettings(), fetchStatus()])
+    await Promise.all([fetchSettings(), fetchStatus(), fetchDiag()])
   } catch (e: any) {
     saveMsg.value = e.message
   } finally {
@@ -162,10 +186,15 @@ async function handleDeleteResv(id: number) {
   }
 }
 
+function checkTunCreate(): boolean | null {
+  if (!diag.value) return null
+  return diag.value.tun_create.startsWith('ok')
+}
+
 async function refreshAll() {
   loading.value = true
   error.value = ''
-  await Promise.all([fetchSettings(), fetchStatus(), fetchReservations(), fetchUsers()])
+  await Promise.all([fetchSettings(), fetchStatus(), fetchReservations(), fetchUsers(), fetchDiag()])
   loading.value = false
 }
 
@@ -204,6 +233,89 @@ onMounted(() => {
         <p class="text-xs text-gray-500 dark:text-gray-400">IP 用量</p>
         <p class="text-xl font-bold text-gray-900 dark:text-white mt-1">{{ status?.used_ips ?? '--' }} / {{ status?.capacity ?? '--' }}</p>
       </div>
+    </div>
+
+    <!-- 系统环境检测 -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">系统环境检测</h3>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <!-- TUN 创建状态 -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span v-if="diag?.tun_running" class="text-green-500 mt-0.5">✓</span>
+          <span v-else-if="checkTunCreate()" class="text-green-500 mt-0.5">✓</span>
+          <span v-else class="text-red-500 mt-0.5">✗</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">TUN 设备</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              <template v-if="diag?.tun_running">运行中 ({{ diag.tun_name }})</template>
+              <template v-else>{{ diag?.tun_create }}</template>
+            </p>
+          </div>
+        </div>
+
+        <!-- Root -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span :class="diag?.is_root ? 'text-green-500' : 'text-red-500'" class="mt-0.5">{{ diag?.is_root ? '✓' : '✗' }}</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">Root 权限</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ diag?.is_root ? '以 root 运行' : '非 root 运行' }}</p>
+          </div>
+        </div>
+
+        <!-- CAP_NET_ADMIN -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span v-if="diag?.has_cap_net_admin === null" class="text-gray-400 mt-0.5">—</span>
+          <span v-else-if="diag?.has_cap_net_admin" class="text-green-500 mt-0.5">✓</span>
+          <span v-else class="text-red-500 mt-0.5">✗</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">CAP_NET_ADMIN</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              <template v-if="diag?.has_cap_net_admin === null">{{ diag?.cap_net_admin_note }}</template>
+              <template v-else>{{ diag?.has_cap_net_admin ? '已授权' : diag?.cap_net_admin_note || '未授权' }}</template>
+            </p>
+          </div>
+        </div>
+
+        <!-- IP Forward -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span v-if="diag?.ip_forward === null" class="text-gray-400 mt-0.5">—</span>
+          <span v-else-if="diag?.ip_forward" class="text-green-500 mt-0.5">✓</span>
+          <span v-else class="text-red-500 mt-0.5">✗</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">IP 转发 (ip_forward)</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              <template v-if="diag?.ip_forward === null">{{ diag?.ip_forward_note }}</template>
+              <template v-else>{{ diag?.ip_forward ? '已开启' : diag?.ip_forward_note || '未开启' }}</template>
+            </p>
+          </div>
+        </div>
+
+        <!-- MASQUERADE -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span v-if="diag?.masquerade === null" class="text-gray-400 mt-0.5">—</span>
+          <span v-else-if="diag?.masquerade" class="text-green-500 mt-0.5">✓</span>
+          <span v-else class="text-red-500 mt-0.5">✗</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">NAT MASQUERADE</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              <template v-if="diag?.masquerade === null">{{ diag?.masquerade_note }}</template>
+              <template v-else>{{ diag?.masquerade ? '已配置' : diag?.masquerade_note || '未配置' }}</template>
+            </p>
+          </div>
+        </div>
+
+        <!-- 平台 -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span class="text-gray-400 mt-0.5">ℹ</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">平台</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ diag?.platform }}</p>
+          </div>
+        </div>
+      </div>
+      <p v-if="diag && diag.platform !== 'linux'" class="text-xs text-gray-400 mt-3">
+        注：CAP_NET_ADMIN / ip_forward / MASQUERADE 检测仅适用于 Linux，其他平台需手动确认网络配置。
+      </p>
     </div>
 
     <!-- 设置 -->

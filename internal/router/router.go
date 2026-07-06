@@ -38,6 +38,7 @@ func Setup(r *gin.Engine) {
 		admin.GET("/vpn/settings", handler.GetVpnSettings)
 		admin.PUT("/vpn/settings", handler.UpdateVpnSettings)
 		admin.GET("/vpn/status", handler.GetVpnStatus)
+		admin.GET("/vpn/diag", handler.GetVpnDiag)
 		admin.GET("/vpn/reservations", handler.ListVpnReservations)
 		admin.POST("/vpn/reservations", handler.CreateVpnReservation)
 		admin.DELETE("/vpn/reservations/:id", handler.DeleteVpnReservation)
