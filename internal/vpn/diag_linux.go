@@ -75,14 +75,32 @@ func findExecutable(names ...string) string {
 	return ""
 }
 
-// checkMasquerade 检测 NAT masquerade 规则，优先 iptables，回退 nft
+// checkMasquerade 检测 NAT masquerade 规则，优先 nft（原生、无兼容问题），回退 iptables
 // 返回 (结果, 说明)；结果为 nil 表示无法判定
 func checkMasquerade() (*bool, string) {
-	// 优先 iptables
+	// 优先 nft：Debian 12+ 的 iptables 是 nft 包装器，操作原生 nft nat 表会 "incompatible"
+	nftPath := findExecutable("nft")
+	if nftPath != "" {
+		out, err := exec.Command(nftPath, "list", "ruleset").Output()
+		if err == nil {
+			has := strings.Contains(string(out), "masquerade")
+			if has {
+				return &has, ""
+			}
+			return &has, "未检测到 masquerade 规则，客户端无法出网"
+		}
+		// nft 存在但执行失败（权限不足等），仍回退 iptables 尝试
+	}
+
+	// 回退 iptables（老系统或 nft 不可用时）
 	iptPath := findExecutable("iptables")
 	if iptPath != "" {
 		out, err := exec.Command(iptPath, "-t", "nat", "-L", "POSTROUTING", "-n").Output()
 		if err != nil {
+			// iptables-nft 与原生 nft 表不兼容时，若 nft 也读不到则判定为无法检测
+			if nftPath != "" {
+				return nil, "iptables 与原生 nft 表不兼容且 nft 不可执行，无法检测 MASQUERADE"
+			}
 			return nil, "iptables 不可执行（权限不足？），无法检测 MASQUERADE"
 		}
 		has := strings.Contains(string(out), "MASQUERADE")
@@ -92,19 +110,5 @@ func checkMasquerade() (*bool, string) {
 		return &has, "未检测到 MASQUERADE 规则，客户端无法出网"
 	}
 
-	// 回退 nft
-	nftPath := findExecutable("nft")
-	if nftPath != "" {
-		out, err := exec.Command(nftPath, "list", "ruleset").Output()
-		if err != nil {
-			return nil, "nft 不可执行（权限不足？），无法检测 MASQUERADE"
-		}
-		has := strings.Contains(string(out), "masquerade")
-		if has {
-			return &has, ""
-		}
-		return &has, "未检测到 masquerade 规则，客户端无法出网"
-	}
-
-	return nil, "iptables 与 nft 均未安装，无法检测 NAT 规则。Debian/Ubuntu 安装: apt install iptables iptables-persistent"
+	return nil, "iptables 与 nft 均未安装，无法检测 NAT 规则。Debian/Ubuntu 安装: apt install nftables"
 }
