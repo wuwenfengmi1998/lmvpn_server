@@ -110,7 +110,7 @@ func seedDefaultVpnSettings() error {
 	s = model.VpnSetting{
 		ID:               model.VpnSettingSingletonID,
 		Enabled:          false,
-		Subnet:           "192.168.3.0/24",
+		Subnet:           "192.168.77.0/24",
 		MTU:              1420,
 		InterfaceName:    "",
 		DoLocalIPConfig:  true,

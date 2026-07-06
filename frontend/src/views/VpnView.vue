@@ -63,7 +63,7 @@ const saveMsg = ref('')
 
 const form = ref<Settings>({
   enabled: false,
-  subnet: '192.168.3.0/24',
+  subnet: '192.168.77.0/24',
   mtu: 1420,
   interface_name: '',
   allow_client_to_client: false,
@@ -331,7 +331,7 @@ onMounted(() => {
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">子网 (CIDR)</label>
-          <input v-model="form.subnet" type="text" placeholder="192.168.3.0/24" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+          <input v-model="form.subnet" type="text" placeholder="192.168.77.0/24" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">MTU</label>
@@ -437,7 +437,7 @@ onMounted(() => {
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">IP 地址</label>
-            <input v-model="resvForm.ip_address" type="text" placeholder="192.168.3.10" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+            <input v-model="resvForm.ip_address" type="text" placeholder="192.168.77.10" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
           </div>
           <p v-if="resvError" class="text-sm text-red-500">{{ resvError }}</p>
         </div>
