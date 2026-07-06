@@ -20,13 +20,10 @@ func (t *TUNInterface) Configure(localIP net.IP, prefix int, peerIP net.IP) erro
 	}
 	localCidr := fmt.Sprintf("%s/%d", localIP.String(), prefix)
 	inetType := inetFamily(localIP)
-	var err error
-	if t.Iface.IsTUN() && inetType == "inet" {
-		err = execCmd("ifconfig", t.Name(), inetType, localCidr, peerIP.String(), "up")
-	} else {
-		err = execCmd("ifconfig", t.Name(), inetType, localCidr, "up")
+	if t.Iface.IsTUN() && inetType == "inet" && peerIP != nil {
+		return execCmd("ifconfig", t.Name(), inetType, localCidr, peerIP.String(), "up")
 	}
-	return err
+	return execCmd("ifconfig", t.Name(), inetType, localCidr, "up")
 }
 
 func (t *TUNInterface) AddSubnetRoute(subnet *net.IPNet) error {

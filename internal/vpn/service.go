@@ -81,12 +81,14 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations map[u
 		return err
 	}
 
-	var peerIP net.IP = serverIP
 	if settings.DoLocalIPConfig {
-		if err := tun.Configure(serverIP, prefix, peerIP); err != nil {
+		if err := tun.Configure(serverIP, prefix, nil); err != nil {
 			_ = tun.Close()
 			return fmt.Errorf("配置 TUN 失败: %w", err)
 		}
+	}
+	if err := tun.AddSubnetRoute(ipNet); err != nil {
+		log.Printf("警告: 添加子网路由失败: %v", err)
 	}
 	if err := tun.SetMTU(settings.MTU); err != nil {
 		log.Printf("警告: 设置 MTU 失败: %v", err)

@@ -15,13 +15,12 @@ func (t *TUNInterface) Configure(localIP net.IP, prefix int, peerIP net.IP) erro
 		return nil
 	}
 	localCidr := fmt.Sprintf("%s/%d", localIP.String(), prefix)
-	args := []string{"addr", "add", "dev", t.Name(), localCidr, "peer", peerIP.String()}
-	if err := execCmd("ip", args...); err != nil {
-		if err2 := execCmd("ip", "addr", "add", "dev", t.Name(), localCidr); err2 != nil {
-			return err
+	if peerIP != nil {
+		if err := execCmd("ip", "addr", "add", "dev", t.Name(), localCidr, "peer", peerIP.String()); err == nil {
+			return nil
 		}
 	}
-	return nil
+	return execCmd("ip", "addr", "add", "dev", t.Name(), localCidr)
 }
 
 func (t *TUNInterface) AddSubnetRoute(subnet *net.IPNet) error {
