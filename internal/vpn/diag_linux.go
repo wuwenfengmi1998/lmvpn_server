@@ -21,13 +21,9 @@ func fillPlatformDiag(r *DiagResult) {
 		r.IPForwardNote = "未开启，执行: sysctl -w net.ipv4.ip_forward=1"
 	}
 
-	m := checkMasquerade()
+	m, note := checkMasquerade()
 	r.Masquerade = m
-	if m == nil {
-		r.MasqueradeNote = "iptables 未安装或不可执行"
-	} else if !*m {
-		r.MasqueradeNote = "未检测到 MASQUERADE 规则，客户端无法出网"
-	}
+	r.MasqueradeNote = note
 }
 
 func ptrBool(b bool) *bool { return &b }
@@ -63,12 +59,52 @@ func readIPForward() *bool {
 	return &v
 }
 
-func checkMasquerade() *bool {
-	cmd := exec.Command("iptables", "-t", "nat", "-L", "POSTROUTING", "-n")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil
+// findExecutable 在常见路径中查找可执行文件，弥补 systemd 服务 PATH 不含 /usr/sbin、/sbin 的问题
+func findExecutable(names ...string) string {
+	for _, name := range names {
+		if p, err := exec.LookPath(name); err == nil {
+			return p
+		}
+		for _, dir := range []string{"/usr/sbin", "/sbin", "/usr/bin", "/bin"} {
+			full := dir + "/" + name
+			if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
+				return full
+			}
+		}
 	}
-	has := strings.Contains(string(out), "MASQUERADE")
-	return &has
+	return ""
+}
+
+// checkMasquerade 检测 NAT masquerade 规则，优先 iptables，回退 nft
+// 返回 (结果, 说明)；结果为 nil 表示无法判定
+func checkMasquerade() (*bool, string) {
+	// 优先 iptables
+	iptPath := findExecutable("iptables")
+	if iptPath != "" {
+		out, err := exec.Command(iptPath, "-t", "nat", "-L", "POSTROUTING", "-n").Output()
+		if err != nil {
+			return nil, "iptables 不可执行（权限不足？），无法检测 MASQUERADE"
+		}
+		has := strings.Contains(string(out), "MASQUERADE")
+		if has {
+			return &has, ""
+		}
+		return &has, "未检测到 MASQUERADE 规则，客户端无法出网"
+	}
+
+	// 回退 nft
+	nftPath := findExecutable("nft")
+	if nftPath != "" {
+		out, err := exec.Command(nftPath, "list", "ruleset").Output()
+		if err != nil {
+			return nil, "nft 不可执行（权限不足？），无法检测 MASQUERADE"
+		}
+		has := strings.Contains(string(out), "masquerade")
+		if has {
+			return &has, ""
+		}
+		return &has, "未检测到 masquerade 规则，客户端无法出网"
+	}
+
+	return nil, "iptables 与 nft 均未安装，无法检测 NAT 规则。Debian/Ubuntu 安装: apt install iptables iptables-persistent"
 }

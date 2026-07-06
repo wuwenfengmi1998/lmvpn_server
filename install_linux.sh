@@ -52,32 +52,61 @@ echo ">>> 配置 iptables NAT 与转发规则..."
 # 自动检测默认路由出口网卡
 WAN_IFACE=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
 if [ -z "$WAN_IFACE" ]; then
-    echo "警告: 未能自动检测出口网卡，跳过 iptables 配置，请手动设置"
+    echo "警告: 未能自动检测出口网卡，跳过 NAT 配置，请手动设置"
 else
     echo "出口网卡: $WAN_IFACE"
 
-    # 幂等：先删除旧规则（忽略错误），再添加
-    # NAT: VPN 子网经出口网卡做源地址转换
-    iptables -t nat -D POSTROUTING -s "$VPN_SUBNET" -o "$WAN_IFACE" -j MASQUERADE 2>/dev/null || true
-    iptables -t nat -A POSTROUTING -s "$VPN_SUBNET" -o "$WAN_IFACE" -j MASQUERADE
+    # 选择可用的防火墙前端：优先 iptables，回退 nft
+    NAT_TOOL=""
+    if command -v iptables >/dev/null 2>&1; then
+        NAT_TOOL="iptables"
+    elif command -v nft >/dev/null 2>&1; then
+        NAT_TOOL="nft"
+    fi
 
-    # FORWARD: 放行 VPN 子网进出
-    iptables -D FORWARD -s "$VPN_SUBNET" -j ACCEPT 2>/dev/null || true
-    iptables -D FORWARD -d "$VPN_SUBNET" -j ACCEPT 2>/dev/null || true
-    iptables -A FORWARD -s "$VPN_SUBNET" -j ACCEPT
-    iptables -A FORWARD -d "$VPN_SUBNET" -j ACCEPT
+    if [ -z "$NAT_TOOL" ]; then
+        echo "警告: 未找到 iptables 或 nft，跳过 NAT 配置"
+        echo "       客户端将无法上外网。请安装: apt install iptables iptables-persistent"
+        echo "       安装后重新执行本脚本即可自动配置"
+    elif [ "$NAT_TOOL" = "iptables" ]; then
+        echo "使用 iptables 配置 NAT..."
+        # 幂等：先删除旧规则（忽略错误），再添加
+        iptables -t nat -D POSTROUTING -s "$VPN_SUBNET" -o "$WAN_IFACE" -j MASQUERADE 2>/dev/null || true
+        iptables -t nat -A POSTROUTING -s "$VPN_SUBNET" -o "$WAN_IFACE" -j MASQUERADE
 
-    # 持久化 iptables 规则
-    if command -v netfilter-persistent >/dev/null 2>&1; then
-        netfilter-persistent save
-        echo "iptables 规则已通过 netfilter-persistent 持久化"
-    elif command -v iptables-save >/dev/null 2>&1; then
-        mkdir -p /etc/iptables
-        iptables-save > /etc/iptables/rules.v4
-        echo "iptables 规则已写入 /etc/iptables/rules.v4"
-        echo "注意: 重启后规则持久化需配合 iptables-persistent 包，建议安装: apt install iptables-persistent"
-    else
-        echo "警告: 未找到 iptables-save，规则仅在本次运行有效，请手动持久化"
+        iptables -D FORWARD -s "$VPN_SUBNET" -j ACCEPT 2>/dev/null || true
+        iptables -D FORWARD -d "$VPN_SUBNET" -j ACCEPT 2>/dev/null || true
+        iptables -A FORWARD -s "$VPN_SUBNET" -j ACCEPT
+        iptables -A FORWARD -d "$VPN_SUBNET" -j ACCEPT
+
+        # 持久化 iptables 规则
+        if command -v netfilter-persistent >/dev/null 2>&1; then
+            netfilter-persistent save
+            echo "iptables 规则已通过 netfilter-persistent 持久化"
+        elif command -v iptables-save >/dev/null 2>&1; then
+            mkdir -p /etc/iptables
+            iptables-save > /etc/iptables/rules.v4
+            echo "iptables 规则已写入 /etc/iptables/rules.v4"
+            echo "注意: 重启后规则持久化需配合 iptables-persistent 包，建议安装: apt install iptables-persistent"
+        else
+            echo "警告: 未找到 iptables-save，规则仅在本次运行有效，请手动持久化"
+        fi
+    elif [ "$NAT_TOOL" = "nft" ]; then
+        echo "使用 nft 配置 NAT..."
+        # 幂等：先删除旧表（忽略错误），再创建
+        nft delete table inet lmvpn_nat 2>/dev/null || true
+        nft add table inet lmvpn_nat
+        nft 'add chain inet lmvpn_nat postrouting { type nat hook postrouting priority 100 ; }'
+        nft add rule inet lmvpn_nat postrouting oifname "$WAN_IFACE" ip saddr "$VPN_SUBNET" masquerade
+        nft 'add chain inet lmvpn_nat forward { type filter hook forward priority 0 ; policy accept ; }'
+        nft add rule inet lmvpn_nat forward ip saddr "$VPN_SUBNET" accept
+        nft add rule inet lmvpn_nat forward ip daddr "$VPN_SUBNET" accept
+
+        # 持久化 nft 规则
+        mkdir -p /etc/nftables.d
+        nft list ruleset > /etc/nftables.d/lmvpn.nft
+        echo "nft 规则已写入 /etc/nftables.d/lmvpn.nft"
+        echo "注意: 需确保系统启动时加载 nftables 规则，编辑 /etc/nftables.conf 添加: include \"/etc/nftables.d/lmvpn.nft\""
     fi
 fi
 
