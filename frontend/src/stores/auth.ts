@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import i18n from '@/i18n'
 
 interface UserInfo {
   id: number
@@ -33,7 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
     if (!res.ok) {
       const data = await res.json()
-      throw new Error(data.error || '登录失败')
+      throw new Error(data.error || i18n.global.t('login.loginFailed'))
     }
     const data = await res.json()
     setAuth(data.token, data.user)

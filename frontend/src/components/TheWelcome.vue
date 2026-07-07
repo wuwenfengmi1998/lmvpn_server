@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import WelcomeItem from './WelcomeItem.vue'
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -10,8 +13,8 @@ import WelcomeItem from './WelcomeItem.vue'
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       </template>
-      <template #heading>安全隧道</template>
-      基于 WireGuard/OpenVPN 协议，端到端加密传输，保障数据安全无泄漏。
+      <template #heading>{{ t('home.secureTunnel') }}</template>
+      {{ t('home.secureTunnelDesc') }}
     </WelcomeItem>
 
     <WelcomeItem>
@@ -20,8 +23,8 @@ import WelcomeItem from './WelcomeItem.vue'
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       </template>
-      <template #heading>多设备支持</template>
-      同时连接多台设备，手机、电脑、路由器全平台覆盖。
+      <template #heading>{{ t('home.multiDevice') }}</template>
+      {{ t('home.multiDeviceDesc') }}
     </WelcomeItem>
 
     <WelcomeItem>
@@ -30,8 +33,8 @@ import WelcomeItem from './WelcomeItem.vue'
           <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
         </svg>
       </template>
-      <template #heading>流量监控</template>
-      实时流量统计与带宽分析，随时掌握网络使用状况。
+      <template #heading>{{ t('home.trafficMonitor') }}</template>
+      {{ t('home.trafficMonitorDesc') }}
     </WelcomeItem>
 
     <WelcomeItem>
@@ -41,8 +44,8 @@ import WelcomeItem from './WelcomeItem.vue'
           <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </template>
-      <template #heading>简易配置</template>
-      一键部署、自动配置，无需复杂网络知识即可上线。
+      <template #heading>{{ t('home.easyConfig') }}</template>
+      {{ t('home.easyConfigDesc') }}
     </WelcomeItem>
   </div>
 </template>

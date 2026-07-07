@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { toggleLocale } from '@/i18n'
+import logo from '@/assets/logo.svg'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t, locale } = useI18n()
 
 function handleLogout() {
   authStore.logout()
@@ -11,8 +15,8 @@ function handleLogout() {
 }
 
 const navLinks = [
-  { to: '/', label: '首页' },
-  { to: '/about', label: '关于' },
+  { to: '/', label: 'nav.home' },
+  { to: '/about', label: 'nav.about' },
 ]
 </script>
 
@@ -20,7 +24,8 @@ const navLinks = [
   <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
     <header class="bg-sky-600 text-white shadow-md">
       <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <RouterLink to="/" class="text-xl font-bold tracking-wide hover:text-sky-200 transition-colors">
+        <RouterLink to="/" class="flex items-center gap-2 text-xl font-bold tracking-wide hover:text-sky-200 transition-colors">
+          <img :src="logo" alt="LmVPN" class="h-8 w-8 rounded-lg" />
           LmVPN
         </RouterLink>
         <nav class="flex items-center gap-1 flex-wrap">
@@ -32,7 +37,7 @@ const navLinks = [
                    hover:bg-sky-500/40"
             active-class="bg-sky-700/60"
           >
-            {{ link.label }}
+            {{ t(link.label) }}
           </RouterLink>
           <template v-if="authStore.isLoggedIn">
             <RouterLink
@@ -41,7 +46,7 @@ const navLinks = [
                      hover:bg-sky-500/40"
               active-class="bg-sky-700/60"
             >
-              用户信息
+              {{ t('nav.profile') }}
             </RouterLink>
             <template v-if="authStore.user?.role === 'admin'">
               <RouterLink
@@ -50,7 +55,7 @@ const navLinks = [
                        hover:bg-sky-500/40"
                 active-class="bg-sky-700/60"
               >
-                管理后台
+                {{ t('nav.admin') }}
               </RouterLink>
             </template>
             <a
@@ -59,7 +64,7 @@ const navLinks = [
                      hover:bg-red-500/40"
               @click.prevent="handleLogout"
             >
-              退出
+              {{ t('nav.logout') }}
             </a>
           </template>
           <template v-else>
@@ -69,9 +74,16 @@ const navLinks = [
                      hover:bg-sky-500/40"
               active-class="bg-sky-700/60"
             >
-              登录
+              {{ t('nav.login') }}
             </RouterLink>
           </template>
+          <button
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                   hover:bg-sky-500/40 border border-white/20"
+            @click="toggleLocale"
+          >
+            {{ locale === 'zh' ? 'EN' : '中' }}
+          </button>
         </nav>
       </div>
     </header>
