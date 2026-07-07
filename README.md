@@ -2,7 +2,7 @@
 
 基于 WebSocket 隧道与 TUN 虚拟网卡的轻量级三层 VPN 系统，采用 Go + Vue 3 构建。服务端通过 WebSocket 与客户端建立控制通道，TUN 网卡与 WebSocket 之间双向搬运原始 IP 数据包，实现点对点与点对站点网络连接。
 
-> **平台说明**：服务端部署**目前仅在 Linux 下测试功能正常**（systemd + nftables/iptables NAT）。客户端协议规范见 [`docs/client-development.md`](docs/client-development.md)。
+> **平台说明**：服务端部署**目前仅在 Linux 下测试功能正常**（systemd + nftables/iptables NAT）。配套客户端见 [lmvpn_client](https://github.com/wuwenfengmi1998/lmvpn_client)，客户端协议规范见 [`docs/client-development.md`](docs/client-development.md)。
 
 ---
 
@@ -354,6 +354,7 @@ sudo bash install_linux.sh
 
 ## 相关文档
 
+- [LMVPN 客户端项目](https://github.com/wuwenfengmi1998/lmvpn_client) — 配套客户端源码
 - [客户端开发协议规范](docs/client-development.md) — WebSocket 隧道协议、认证、握手、数据面、TUN 配置等完整规范
 
 ---
