@@ -28,18 +28,20 @@ var (
 )
 
 type tunnelConn struct {
-	conn        *websocket.Conn
-	user        *model.User
-	svc         *VpnService
-	assignedIP  net.IP
-	connectedAt time.Time
-	writeMu     sync.Mutex
-	ready       atomic.Bool
-	rxBytes     atomic.Int64
-	txBytes     atomic.Int64
+	conn         *websocket.Conn
+	user         *model.User
+	svc          *VpnService
+	assignedIP   net.IP
+	assignedIP6  net.IP
+	connectedAt  time.Time
+	writeMu      sync.Mutex
+	ready        atomic.Bool
+	rxBytes      atomic.Int64
+	txBytes      atomic.Int64
 }
 
 func (c *tunnelConn) AssignedIP() net.IP { return c.assignedIP }
+func (c *tunnelConn) AssignedIP6() net.IP { return c.assignedIP6 }
 
 func (c *tunnelConn) WritePacket(data []byte) error {
 	if !c.ready.Load() || len(data) == 0 {
@@ -73,11 +75,15 @@ func (c *tunnelConn) close() {
 }
 
 func (c *tunnelConn) info() ClientInfo {
-	return ClientInfo{
+	ci := ClientInfo{
 		Username:    c.user.Username,
 		IP:          c.assignedIP.String(),
 		ConnectedAt: c.connectedAt.Format("2006-01-02 15:04:05"),
 	}
+	if c.assignedIP6 != nil {
+		ci.IP6 = c.assignedIP6.String()
+	}
+	return ci
 }
 
 func runTunnel(conn *websocket.Conn, user *model.User) {
@@ -106,7 +112,7 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 		activeConnsMu.Unlock()
 	}()
 
-	ip, err := VPN.Allocate(user)
+	ip4, ip6, err := VPN.Allocate(user)
 	if err != nil {
 		_ = sendJSON(conn, controlMessage{Type: "error", Message: "分配 IP 失败: " + err.Error()})
 		return
@@ -116,7 +122,8 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 		conn:        conn,
 		user:        user,
 		svc:         VPN,
-		assignedIP:  ip,
+		assignedIP:  ip4,
+		assignedIP6: ip6,
 		connectedAt: time.Now(),
 	}
 
@@ -126,17 +133,25 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 	settings := VPN.Settings()
 	initMsg := initMessage{
 		Type:     "init",
-		IP:       ip.String(),
+		IP:       ip4.String(),
 		Prefix:   VPN.Prefix(),
 		MTU:      settings.MTU,
 		ServerIP: VPN.ServerIP().String(),
+	}
+	if ip6 != nil {
+		initMsg.IP6 = ip6.String()
+		initMsg.Prefix6 = VPN.Prefix6()
+		initMsg.ServerIP6 = VPN.ServerIP6().String()
 	}
 	if err := tc.writeControl(initMsg); err != nil {
 		log.Printf("用户 %s 发送 init 失败: %v", user.Username, err)
 		return
 	}
 
-	log.Printf("用户 %s 已连接，分配 IP %s", user.Username, ip.String())
+	log.Printf("用户 %s 已连接，分配 IP %s", user.Username, ip4.String())
+	if ip6 != nil {
+		log.Printf("  IPv6: %s", ip6.String())
+	}
 
 	conn.SetReadLimit(maxMessageSize)
 	conn.SetReadDeadline(time.Now().Add(readyTimeout))
@@ -175,7 +190,7 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 			if msg.Type == "ready" && !tc.ready.Load() {
 				tc.ready.Store(true)
 				conn.SetReadDeadline(time.Now().Add(readTimeout))
-				log.Printf("用户 %s 就绪 (IP %s)", user.Username, ip.String())
+				log.Printf("用户 %s 就绪 (IP %s)", user.Username, ip4.String())
 			}
 			continue
 		}

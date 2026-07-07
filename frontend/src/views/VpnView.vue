@@ -8,6 +8,7 @@ const authHeader = () => ({ Authorization: `Bearer ${authStore.token}` })
 interface Settings {
   enabled: boolean
   subnet: string
+  subnet6: string
   mtu: number
   interface_name: string
   allow_client_to_client: boolean
@@ -17,6 +18,7 @@ interface Settings {
 interface ClientInfo {
   username: string
   ip: string
+  ip6?: string
   connected_at: string
 }
 interface Status {
@@ -24,6 +26,8 @@ interface Status {
   online: number
   used_ips: number
   capacity: number
+  used_ips6?: number
+  capacity6?: number
   clients: ClientInfo[]
 }
 interface Reservation {
@@ -31,6 +35,7 @@ interface Reservation {
   user_id: number
   username: string
   ip_address: string
+  ip_address6?: string
   created_at: string
 }
 interface User {
@@ -46,6 +51,10 @@ interface Diag {
   ip_forward_note?: string
   masquerade: boolean | null
   masquerade_note?: string
+  ip6_forward: boolean | null
+  ip6_forward_note?: string
+  masquerade6: boolean | null
+  masquerade6_note?: string
   tun_create: string
   tun_running: boolean
   tun_name?: string
@@ -64,6 +73,7 @@ const saveMsg = ref('')
 const form = ref<Settings>({
   enabled: false,
   subnet: '192.168.77.0/24',
+  subnet6: '',
   mtu: 1420,
   interface_name: '',
   allow_client_to_client: false,
@@ -146,13 +156,13 @@ async function handleSave() {
 }
 
 const showAddResv = ref(false)
-const resvForm = ref({ user_id: 0, ip_address: '' })
+const resvForm = ref({ user_id: 0, ip_address: '', ip_address6: '' })
 const resvError = ref('')
 
 async function handleAddResv() {
   resvError.value = ''
-  if (!resvForm.value.user_id || !resvForm.value.ip_address) {
-    resvError.value = '请选择用户并填写 IP'
+  if (!resvForm.value.user_id || (!resvForm.value.ip_address && !resvForm.value.ip_address6)) {
+    resvError.value = '请选择用户并至少填写一个 IP 地址'
     return
   }
   try {
@@ -164,7 +174,7 @@ async function handleAddResv() {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || '创建失败')
     showAddResv.value = false
-    resvForm.value = { user_id: 0, ip_address: '' }
+    resvForm.value = { user_id: 0, ip_address: '', ip_address6: '' }
     await fetchReservations()
   } catch (e: any) {
     resvError.value = e.message
@@ -296,10 +306,38 @@ onMounted(() => {
           <span v-else-if="diag?.masquerade" class="text-green-500 mt-0.5">✓</span>
           <span v-else class="text-red-500 mt-0.5">✗</span>
           <div>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">NAT MASQUERADE</p>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">NAT MASQUERADE (IPv4)</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
               <template v-if="diag?.masquerade === null">{{ diag?.masquerade_note }}</template>
               <template v-else>{{ diag?.masquerade ? '已配置' : diag?.masquerade_note || '未配置' }}</template>
+            </p>
+          </div>
+        </div>
+
+        <!-- IPv6 Forward -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span v-if="diag?.ip6_forward === null" class="text-gray-400 mt-0.5">—</span>
+          <span v-else-if="diag?.ip6_forward" class="text-green-500 mt-0.5">✓</span>
+          <span v-else class="text-red-500 mt-0.5">✗</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">IPv6 转发 (forwarding)</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              <template v-if="diag?.ip6_forward === null">{{ diag?.ip6_forward_note }}</template>
+              <template v-else>{{ diag?.ip6_forward ? '已开启' : diag?.ip6_forward_note || '未开启' }}</template>
+            </p>
+          </div>
+        </div>
+
+        <!-- IPv6 MASQUERADE -->
+        <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <span v-if="diag?.masquerade6 === null" class="text-gray-400 mt-0.5">—</span>
+          <span v-else-if="diag?.masquerade6" class="text-green-500 mt-0.5">✓</span>
+          <span v-else class="text-red-500 mt-0.5">✗</span>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">NAT MASQUERADE (IPv6)</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              <template v-if="diag?.masquerade6 === null">{{ diag?.masquerade6_note }}</template>
+              <template v-else>{{ diag?.masquerade6 ? '已配置' : diag?.masquerade6_note || '未配置' }}</template>
             </p>
           </div>
         </div>
@@ -332,6 +370,10 @@ onMounted(() => {
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">子网 (CIDR)</label>
           <input v-model="form.subnet" type="text" placeholder="192.168.77.0/24" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">IPv6 子网 (CIDR, 可选)</label>
+          <input v-model="form.subnet6" type="text" placeholder="fd00:dead:beef::/112" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">MTU</label>
@@ -375,17 +417,19 @@ onMounted(() => {
         <thead>
           <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">用户</th>
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">分配 IP</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">IPv4</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">IPv6</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">连接时间</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!status?.clients?.length">
-            <td colspan="3" class="px-6 py-6 text-center text-gray-400">暂无在线客户端</td>
+            <td colspan="4" class="px-6 py-6 text-center text-gray-400">暂无在线客户端</td>
           </tr>
           <tr v-for="(c, i) in status?.clients" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
             <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ c.username }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '—' }}</td>
             <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>
           </tr>
         </tbody>
@@ -402,18 +446,20 @@ onMounted(() => {
         <thead>
           <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">用户</th>
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">预留 IP</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">IPv4</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">IPv6</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">创建时间</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!reservations.length">
-            <td colspan="4" class="px-6 py-6 text-center text-gray-400">暂无预留</td>
+            <td colspan="5" class="px-6 py-6 text-center text-gray-400">暂无预留</td>
           </tr>
           <tr v-for="r in reservations" :key="r.id" class="border-b border-gray-100 dark:border-gray-700/50">
             <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ r.username }}</td>
-            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ r.ip_address }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ r.ip_address || '—' }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ r.ip_address6 || '—' }}</td>
             <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ r.created_at }}</td>
             <td class="px-6 py-3">
               <button class="px-3 py-1 text-xs rounded-md font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 transition-colors" @click="handleDeleteResv(r.id)">删除</button>
@@ -436,8 +482,12 @@ onMounted(() => {
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">IP 地址</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">IPv4 地址 (可选)</label>
             <input v-model="resvForm.ip_address" type="text" placeholder="192.168.77.10" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">IPv6 地址 (可选)</label>
+            <input v-model="resvForm.ip_address6" type="text" placeholder="fd00:dead:beef::10" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
           </div>
           <p v-if="resvError" class="text-sm text-red-500">{{ resvError }}</p>
         </div>

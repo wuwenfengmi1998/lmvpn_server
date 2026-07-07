@@ -19,6 +19,10 @@ type VpnService struct {
 	serverIP net.IP
 	prefix   int
 	alloc    *AllocationManager
+	net6     *net.IPNet
+	serverIP6 net.IP
+	prefix6   int
+	alloc6   *AllocationManager
 	switchx  *PacketSwitch
 	tun      *TUNInterface
 	tunDone  chan struct{}
@@ -57,7 +61,7 @@ func (s *VpnService) parseNet(subnet string) (*net.IPNet, net.IP, int, error) {
 	return ipNet, serverIP, ones, nil
 }
 
-func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations map[uint]string) error {
+func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations4, reservations6 map[uint]string) error {
 	s.mu.Lock()
 	if s.running {
 		s.mu.Unlock()
@@ -76,6 +80,17 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations map[u
 		return err
 	}
 
+	var ipNet6 *net.IPNet
+	var serverIP6 net.IP
+	var prefix6 int
+	var alloc6 *AllocationManager
+	if settings.Subnet6 != "" {
+		ipNet6, serverIP6, prefix6, err = s.parseNet(settings.Subnet6)
+		if err != nil {
+			return fmt.Errorf("IPv6 子网错误: %w", err)
+		}
+	}
+
 	tun, err := CreateTUN(settings.InterfaceName)
 	if err != nil {
 		return err
@@ -84,11 +99,22 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations map[u
 	if settings.DoLocalIPConfig {
 		if err := tun.Configure(serverIP, prefix, nil); err != nil {
 			_ = tun.Close()
-			return fmt.Errorf("配置 TUN 失败: %w", err)
+			return fmt.Errorf("配置 TUN IPv4 失败: %w", err)
 		}
 	}
 	if err := tun.AddSubnetRoute(ipNet); err != nil {
-		log.Printf("警告: 添加子网路由失败: %v", err)
+		log.Printf("警告: 添加 IPv4 子网路由失败: %v", err)
+	}
+	if ipNet6 != nil {
+		if settings.DoLocalIPConfig {
+			if err := tun.Configure(serverIP6, prefix6, nil); err != nil {
+				log.Printf("警告: 配置 TUN IPv6 失败: %v", err)
+			}
+		}
+		if err := tun.AddSubnetRoute(ipNet6); err != nil {
+			log.Printf("警告: 添加 IPv6 子网路由失败: %v", err)
+		}
+		alloc6 = NewAllocationManager(ipNet6, serverIP6, reservations6)
 	}
 	if err := tun.SetMTU(settings.MTU); err != nil {
 		log.Printf("警告: 设置 MTU 失败: %v", err)
@@ -98,7 +124,11 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations map[u
 	s.net = ipNet
 	s.serverIP = serverIP
 	s.prefix = prefix
-	s.alloc = NewAllocationManager(ipNet, serverIP, reservations)
+	s.alloc = NewAllocationManager(ipNet, serverIP, reservations4)
+	s.net6 = ipNet6
+	s.serverIP6 = serverIP6
+	s.prefix6 = prefix6
+	s.alloc6 = alloc6
 	s.switchx = NewPacketSwitch(settings.AllowClientToClient)
 	s.tun = tun
 	s.tunDone = make(chan struct{})
@@ -106,7 +136,10 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations map[u
 	s.mu.Unlock()
 
 	go s.serveTUN()
-	log.Printf("VPN 服务已启动: tun=%s subnet=%s server=%s mtu=%d", tun.Name(), ipNet.String(), serverIP.String(), settings.MTU)
+	log.Printf("VPN 服务已启动: tun=%s subnet=%s server=%s", tun.Name(), ipNet.String(), serverIP.String())
+	if ipNet6 != nil {
+		log.Printf("  IPv6: subnet=%s server=%s", ipNet6.String(), serverIP6.String())
+	}
 	return nil
 }
 
@@ -162,14 +195,27 @@ func (s *VpnService) Stop() error {
 	return nil
 }
 
-func (s *VpnService) Allocate(user *model.User) (net.IP, error) {
+func (s *VpnService) Allocate(user *model.User) (net.IP, net.IP, error) {
 	s.mu.RLock()
 	alloc := s.alloc
+	alloc6 := s.alloc6
 	s.mu.RUnlock()
 	if alloc == nil {
-		return nil, errors.New("VPN 服务未运行")
+		return nil, nil, errors.New("VPN 服务未运行")
 	}
-	return alloc.Allocate(user.ID)
+	ip4, err := alloc.Allocate(user.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	var ip6 net.IP
+	if alloc6 != nil {
+		ip6, err = alloc6.Allocate(user.ID)
+		if err != nil {
+			alloc.Release(ip4)
+			return ip4, nil, fmt.Errorf("IPv6 分配失败: %w", err)
+		}
+	}
+	return ip4, ip6, nil
 }
 
 func (s *VpnService) WriteToTUN(packet []byte) error {
@@ -209,6 +255,9 @@ func (s *VpnService) unregisterClient(c *tunnelConn) {
 	if s.alloc != nil {
 		s.alloc.Release(c.assignedIP)
 	}
+	if s.alloc6 != nil && c.assignedIP6 != nil {
+		s.alloc6.Release(c.assignedIP6)
+	}
 	s.mu.Unlock()
 }
 
@@ -224,14 +273,36 @@ func (s *VpnService) Prefix() int {
 	return s.prefix
 }
 
-func (s *VpnService) AllocStats() (used int, capacity uint64) {
+func (s *VpnService) ServerIP6() net.IP {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.serverIP6
+}
+
+func (s *VpnService) Prefix6() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.prefix6
+}
+
+func (s *VpnService) HasIPv6() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.alloc6 != nil
+}
+
+func (s *VpnService) AllocStats() (used4 int, cap4 uint64, used6 int, cap6 uint64) {
 	s.mu.RLock()
 	alloc := s.alloc
+	alloc6 := s.alloc6
 	s.mu.RUnlock()
-	if alloc == nil {
-		return 0, 0
+	if alloc != nil {
+		used4, cap4 = alloc.UsedCount(), alloc.Capacity()
 	}
-	return alloc.UsedCount(), alloc.Capacity()
+	if alloc6 != nil {
+		used6, cap6 = alloc6.UsedCount(), alloc6.Capacity()
+	}
+	return
 }
 
 func (s *VpnService) AddReservation(userID uint, ipStr string) {
@@ -243,12 +314,25 @@ func (s *VpnService) AddReservation(userID uint, ipStr string) {
 	}
 }
 
+func (s *VpnService) AddReservation6(userID uint, ipStr string) {
+	s.mu.RLock()
+	alloc6 := s.alloc6
+	s.mu.RUnlock()
+	if alloc6 != nil {
+		alloc6.AddReservation(userID, ipStr)
+	}
+}
+
 func (s *VpnService) RemoveReservation(userID uint) {
 	s.mu.RLock()
 	alloc := s.alloc
+	alloc6 := s.alloc6
 	s.mu.RUnlock()
 	if alloc != nil {
 		alloc.RemoveReservation(userID)
+	}
+	if alloc6 != nil {
+		alloc6.RemoveReservation(userID)
 	}
 }
 
@@ -265,6 +349,7 @@ func (s *VpnService) ClientList() []ClientInfo {
 type ClientInfo struct {
 	Username    string `json:"username"`
 	IP          string `json:"ip"`
+	IP6         string `json:"ip6,omitempty"`
 	ConnectedAt string `json:"connected_at"`
 }
 

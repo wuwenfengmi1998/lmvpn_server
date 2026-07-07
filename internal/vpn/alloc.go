@@ -49,6 +49,9 @@ func (m *AllocationManager) Allocate(userID uint) (net.IP, error) {
 	}
 
 	count := cidr.AddressCount(m.net)
+	if count == 0 && m.net.IP.To4() == nil {
+		count = 65536
+	}
 	maxIndex := int(count - 1)
 	for i := 2; i < maxIndex; i++ {
 		ip, err := cidr.Host(m.net, i)
@@ -105,6 +108,9 @@ func (m *AllocationManager) UsedCount() int {
 
 func (m *AllocationManager) Capacity() uint64 {
 	count := cidr.AddressCount(m.net)
+	if count == 0 && m.net.IP.To4() == nil {
+		return 65533
+	}
 	if count < 3 {
 		return 0
 	}

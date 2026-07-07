@@ -6,17 +6,21 @@ import (
 )
 
 type DiagResult struct {
-	Platform        string `json:"platform"`
-	IsRoot          bool   `json:"is_root"`
-	HasCapNetAdmin  *bool  `json:"has_cap_net_admin"`
-	CapNetAdminNote string `json:"cap_net_admin_note,omitempty"`
-	IPForward       *bool  `json:"ip_forward"`
-	IPForwardNote   string `json:"ip_forward_note,omitempty"`
-	Masquerade      *bool  `json:"masquerade"`
-	MasqueradeNote  string `json:"masquerade_note,omitempty"`
-	TUNCreate       string `json:"tun_create"`
-	TUNRunning      bool   `json:"tun_running"`
-	TUNName         string `json:"tun_name,omitempty"`
+	Platform         string `json:"platform"`
+	IsRoot           bool   `json:"is_root"`
+	HasCapNetAdmin   *bool  `json:"has_cap_net_admin"`
+	CapNetAdminNote  string `json:"cap_net_admin_note,omitempty"`
+	IPForward        *bool  `json:"ip_forward"`
+	IPForwardNote    string `json:"ip_forward_note,omitempty"`
+	Masquerade       *bool  `json:"masquerade"`
+	MasqueradeNote   string `json:"masquerade_note,omitempty"`
+	IP6Forward       *bool  `json:"ip6_forward"`
+	IP6ForwardNote   string `json:"ip6_forward_note,omitempty"`
+	Masquerade6      *bool  `json:"masquerade6"`
+	Masquerade6Note  string `json:"masquerade6_note,omitempty"`
+	TUNCreate        string `json:"tun_create"`
+	TUNRunning       bool   `json:"tun_running"`
+	TUNName          string `json:"tun_name,omitempty"`
 }
 
 func Diag(svc *VpnService) DiagResult {

@@ -16,6 +16,7 @@ import (
 type vpnSettingsResponse struct {
 	Enabled             bool   `json:"enabled"`
 	Subnet              string `json:"subnet"`
+	Subnet6             string `json:"subnet6"`
 	MTU                 int    `json:"mtu"`
 	InterfaceName       string `json:"interface_name"`
 	AllowClientToClient bool   `json:"allow_client_to_client"`
@@ -26,6 +27,7 @@ type vpnSettingsResponse struct {
 type updateVpnSettingsRequest struct {
 	Enabled             *bool   `json:"enabled"`
 	Subnet              *string `json:"subnet"`
+	Subnet6             *string `json:"subnet6"`
 	MTU                 *int    `json:"mtu"`
 	InterfaceName       *string `json:"interface_name"`
 	AllowClientToClient *bool   `json:"allow_client_to_client"`
@@ -39,16 +41,22 @@ func loadVpnSettings() (model.VpnSetting, error) {
 	return s, err
 }
 
-func loadReservationsMap() (map[uint]string, error) {
+func loadReservationsMap() (map[uint]string, map[uint]string, error) {
 	var rows []model.VpnReservation
 	if err := db.DB.Find(&rows).Error; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	out := make(map[uint]string, len(rows))
+	out4 := make(map[uint]string, len(rows))
+	out6 := make(map[uint]string, len(rows))
 	for _, r := range rows {
-		out[r.UserID] = r.IPAddress
+		if r.IPAddress != "" {
+			out4[r.UserID] = r.IPAddress
+		}
+		if r.IPAddress6 != "" {
+			out6[r.UserID] = r.IPAddress6
+		}
 	}
-	return out, nil
+	return out4, out6, nil
 }
 
 func ApplyVpnFromDB(svc *vpn.VpnService) error {
@@ -56,11 +64,11 @@ func ApplyVpnFromDB(svc *vpn.VpnService) error {
 	if err != nil {
 		return err
 	}
-	reservations, err := loadReservationsMap()
+	resv4, resv6, err := loadReservationsMap()
 	if err != nil {
 		return err
 	}
-	return svc.ApplySettings(s, reservations)
+	return svc.ApplySettings(s, resv4, resv6)
 }
 
 func validateSubnet(subnet string) error {
@@ -78,12 +86,30 @@ func validateSubnet(subnet string) error {
 	return nil
 }
 
+func validateSubnet6(subnet string) error {
+	ip, ipNet, err := net.ParseCIDR(subnet)
+	if err != nil {
+		return err
+	}
+	if ip.To4() != nil {
+		return errIPv6Only
+	}
+	ones, _ := ipNet.Mask.Size()
+	if ones < 64 || ones > 126 {
+		return errSubnet6Range
+	}
+	return nil
+}
+
 var (
 	errIPv4Only       = errStr("仅支持 IPv4 子网")
+	errIPv6Only       = errStr("IPv6 子网不能使用 IPv4 地址")
 	errSubnetTooSmall = errStr("子网前缀长度不能大于 /30")
+	errSubnet6Range   = errStr("IPv6 子网前缀长度应在 /64 到 /126 之间")
 	errIPNotInSubnet  = errStr("IP 不在子网范围内")
 	errIPReserved     = errStr("该 IP 已被预留")
 	errIPIsServer     = errStr("该 IP 为服务器 IP，不可预留")
+	errNeedAtLeastOne = errStr("至少需要填写 IPv4 或 IPv6 地址之一")
 )
 
 type errStr string
@@ -99,6 +125,7 @@ func GetVpnSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, vpnSettingsResponse{
 		Enabled:             s.Enabled,
 		Subnet:              s.Subnet,
+		Subnet6:             s.Subnet6,
 		MTU:                 s.MTU,
 		InterfaceName:       s.InterfaceName,
 		AllowClientToClient: s.AllowClientToClient,
@@ -126,6 +153,15 @@ func UpdateVpnSettings(c *gin.Context) {
 			return
 		}
 		s.Subnet = *req.Subnet
+	}
+	if req.Subnet6 != nil && *req.Subnet6 != s.Subnet6 {
+		if *req.Subnet6 != "" {
+			if err := validateSubnet6(*req.Subnet6); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		s.Subnet6 = *req.Subnet6
 	}
 	if req.MTU != nil {
 		if *req.MTU < 500 || *req.MTU > 65535 {
@@ -163,11 +199,13 @@ func UpdateVpnSettings(c *gin.Context) {
 }
 
 type vpnStatusResponse struct {
-	Enabled    bool     `json:"enabled"`
-	Online     int      `json:"online"`
-	UsedIPs    int      `json:"used_ips"`
-	Capacity   uint64   `json:"capacity"`
-	Clients    []vpn.ClientInfo `json:"clients"`
+	Enabled   bool             `json:"enabled"`
+	Online    int              `json:"online"`
+	UsedIPs   int              `json:"used_ips"`
+	Capacity  uint64           `json:"capacity"`
+	UsedIPs6  int              `json:"used_ips6,omitempty"`
+	Capacity6 uint64           `json:"capacity6,omitempty"`
+	Clients   []vpn.ClientInfo `json:"clients"`
 }
 
 func GetVpnStatus(c *gin.Context) {
@@ -176,14 +214,16 @@ func GetVpnStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "加载设置失败"})
 		return
 	}
-	used, cap := vpn.VPN.AllocStats()
+	used4, cap4, used6, cap6 := vpn.VPN.AllocStats()
 	clients := vpn.VPN.ClientList()
 	c.JSON(http.StatusOK, vpnStatusResponse{
-		Enabled:  s.Enabled,
-		Online:   len(clients),
-		UsedIPs:  used,
-		Capacity: cap,
-		Clients:  clients,
+		Enabled:   s.Enabled,
+		Online:    len(clients),
+		UsedIPs:   used4,
+		Capacity:  cap4,
+		UsedIPs6:  used6,
+		Capacity6: cap6,
+		Clients:   clients,
 	})
 }
 
@@ -192,11 +232,12 @@ func GetVpnDiag(c *gin.Context) {
 }
 
 type reservationResponse struct {
-	ID        uint   `json:"id"`
-	UserID    uint   `json:"user_id"`
-	Username  string `json:"username"`
-	IPAddress string `json:"ip_address"`
-	CreatedAt string `json:"created_at"`
+	ID         uint   `json:"id"`
+	UserID     uint   `json:"user_id"`
+	Username   string `json:"username"`
+	IPAddress  string `json:"ip_address"`
+	IPAddress6 string `json:"ip_address6,omitempty"`
+	CreatedAt  string `json:"created_at"`
 }
 
 func ListVpnReservations(c *gin.Context) {
@@ -220,25 +261,32 @@ func ListVpnReservations(c *gin.Context) {
 	out := make([]reservationResponse, len(rows))
 	for i, r := range rows {
 		out[i] = reservationResponse{
-			ID:        r.ID,
-			UserID:    r.UserID,
-			Username:  nameMap[r.UserID],
-			IPAddress: r.IPAddress,
-			CreatedAt: r.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:         r.ID,
+			UserID:     r.UserID,
+			Username:   nameMap[r.UserID],
+			IPAddress:  r.IPAddress,
+			IPAddress6: r.IPAddress6,
+			CreatedAt:  r.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{"reservations": out})
 }
 
 type createReservationRequest struct {
-	UserID    uint   `json:"user_id" binding:"required"`
-	IPAddress string `json:"ip_address" binding:"required"`
+	UserID     uint   `json:"user_id" binding:"required"`
+	IPAddress  string `json:"ip_address"`
+	IPAddress6 string `json:"ip_address6"`
 }
 
 func CreateVpnReservation(c *gin.Context) {
 	var req createReservationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	if req.IPAddress == "" && req.IPAddress6 == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errNeedAtLeastOne.Error()})
 		return
 	}
 
@@ -253,42 +301,86 @@ func CreateVpnReservation(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "加载设置失败"})
 		return
 	}
-	_, ipNet, err := net.ParseCIDR(s.Subnet)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "子网配置错误"})
-		return
-	}
-	ip := net.ParseIP(req.IPAddress)
-	if ip == nil || !ipNet.Contains(ip) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errIPNotInSubnet.Error()})
-		return
-	}
-	serverIP, _ := cidr.Host(ipNet, 1)
-	if ip.Equal(serverIP) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errIPIsServer.Error()})
-		return
+
+	// validate v4
+	if req.IPAddress != "" {
+		_, ipNet, err := net.ParseCIDR(s.Subnet)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "子网配置错误"})
+			return
+		}
+		ip := net.ParseIP(req.IPAddress)
+		if ip == nil || !ipNet.Contains(ip) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errIPNotInSubnet.Error()})
+			return
+		}
+		serverIP, _ := cidr.Host(ipNet, 1)
+		if ip.Equal(serverIP) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errIPIsServer.Error()})
+			return
+		}
 	}
 
-	var count int64
-	db.DB.Model(&model.VpnReservation{}).Where("ip_address = ?", req.IPAddress).Count(&count)
-	if count > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errIPReserved.Error()})
-		return
+	// validate v6
+	if req.IPAddress6 != "" {
+		if s.Subnet6 == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "服务端未配置 IPv6 子网"})
+			return
+		}
+		_, ipNet6, err := net.ParseCIDR(s.Subnet6)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "IPv6 子网配置错误"})
+			return
+		}
+		ip6 := net.ParseIP(req.IPAddress6)
+		if ip6 == nil || ip6.To4() != nil || !ipNet6.Contains(ip6) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "IPv6 " + errIPNotInSubnet.Error()})
+			return
+		}
+		serverIP6, _ := cidr.Host(ipNet6, 1)
+		if ip6.Equal(serverIP6) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "IPv6 " + errIPIsServer.Error()})
+			return
+		}
 	}
+
+	// check uniqueness
+	if req.IPAddress != "" {
+		var count int64
+		db.DB.Model(&model.VpnReservation{}).Where("ip_address = ?", req.IPAddress).Count(&count)
+		if count > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": errIPReserved.Error()})
+			return
+		}
+	}
+	if req.IPAddress6 != "" {
+		var count int64
+		db.DB.Model(&model.VpnReservation{}).Where("ip_address6 = ?", req.IPAddress6).Count(&count)
+		if count > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "IPv6 " + errIPReserved.Error()})
+			return
+		}
+	}
+
 	var existUser model.VpnReservation
 	if err := db.DB.Where("user_id = ?", req.UserID).First(&existUser).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "该用户已有预留 IP"})
 		return
 	}
 
-	r := model.VpnReservation{UserID: req.UserID, IPAddress: req.IPAddress}
+	r := model.VpnReservation{UserID: req.UserID, IPAddress: req.IPAddress, IPAddress6: req.IPAddress6}
 	if err := db.DB.Create(&r).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建预留失败"})
 		return
 	}
 
 	if vpn.VPN.Running() {
-		vpn.VPN.AddReservation(req.UserID, req.IPAddress)
+		if req.IPAddress != "" {
+			vpn.VPN.AddReservation(req.UserID, req.IPAddress)
+		}
+		if req.IPAddress6 != "" {
+			vpn.VPN.AddReservation6(req.UserID, req.IPAddress6)
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "预留已创建"})
 }

@@ -10,6 +10,7 @@ import (
 type SwitchConn interface {
 	WritePacket(data []byte) error
 	AssignedIP() net.IP
+	AssignedIP6() net.IP
 }
 
 type ipKey [16]byte
@@ -40,17 +41,24 @@ func (s *PacketSwitch) SetAllowClientToClient(v bool) {
 }
 
 func (s *PacketSwitch) Register(c SwitchConn) {
-	k := ipToKey(c.AssignedIP())
 	s.mu.Lock()
-	s.table[k] = c
+	s.table[ipToKey(c.AssignedIP())] = c
+	if ip6 := c.AssignedIP6(); ip6 != nil {
+		s.table[ipToKey(ip6)] = c
+	}
 	s.mu.Unlock()
 }
 
 func (s *PacketSwitch) Unregister(c SwitchConn) {
-	k := ipToKey(c.AssignedIP())
 	s.mu.Lock()
-	if cur, ok := s.table[k]; ok && cur == c {
-		delete(s.table, k)
+	if cur, ok := s.table[ipToKey(c.AssignedIP())]; ok && cur == c {
+		delete(s.table, ipToKey(c.AssignedIP()))
+	}
+	if ip6 := c.AssignedIP6(); ip6 != nil {
+		k := ipToKey(ip6)
+		if cur, ok := s.table[k]; ok && cur == c {
+			delete(s.table, k)
+		}
 	}
 	s.mu.Unlock()
 }
@@ -110,9 +118,18 @@ func (s *PacketSwitch) RouteFromClient(src SwitchConn, packet []byte) []SwitchCo
 	if !ok {
 		return nil
 	}
-	// anti-spoof: enforce assigned source IP
-	if srcIP != nil && !srcIP.Equal(src.AssignedIP()) {
-		return nil
+	// anti-spoof: enforce assigned source IP by version
+	if srcIP != nil {
+		if srcIP.To4() != nil {
+			if !srcIP.Equal(src.AssignedIP()) {
+				return nil
+			}
+		} else {
+			assigned6 := src.AssignedIP6()
+			if assigned6 == nil || !srcIP.Equal(assigned6) {
+				return nil
+			}
+		}
 	}
 	if dest.IsGlobalUnicast() {
 		if c := s.findByIP(dest); c != nil && s.allowC2C() {
