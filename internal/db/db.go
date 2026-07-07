@@ -40,7 +40,7 @@ func Init(cfg *config.DatabaseConfig) error {
 		return fmt.Errorf("数据库连接失败: %w", err)
 	}
 
-	if err := DB.AutoMigrate(&model.User{}, &model.Session{}, &model.VpnSetting{}, &model.VpnReservation{}); err != nil {
+	if err := DB.AutoMigrate(&model.User{}, &model.Session{}, &model.VpnSetting{}, &model.VpnReservation{}, &model.TrafficStat{}); err != nil {
 		return fmt.Errorf("数据库迁移失败: %w", err)
 	}
 

@@ -32,3 +32,15 @@ type VpnReservation struct {
 func (VpnReservation) TableName() string {
 	return "vpn_reservations"
 }
+
+type TrafficStat struct {
+	ID        uint   `gorm:"primaryKey;autoIncrement"`
+	Date      string `gorm:"uniqueIndex;size:10;not null"`
+	RxBytes   int64  `gorm:"default:0"`
+	TxBytes   int64  `gorm:"default:0"`
+	UpdatedAt time.Time
+}
+
+func (TrafficStat) TableName() string {
+	return "traffic_stats"
+}

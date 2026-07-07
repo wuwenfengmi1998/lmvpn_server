@@ -8,9 +8,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"lmvpn/internal/db"
 	"lmvpn/internal/model"
 
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -28,19 +31,19 @@ var (
 )
 
 type tunnelConn struct {
-	conn         *websocket.Conn
-	user         *model.User
-	svc          *VpnService
-	assignedIP   net.IP
-	assignedIP6  net.IP
-	connectedAt  time.Time
-	writeMu      sync.Mutex
-	ready        atomic.Bool
-	rxBytes      atomic.Int64
-	txBytes      atomic.Int64
+	conn        *websocket.Conn
+	user        *model.User
+	svc         *VpnService
+	assignedIP  net.IP
+	assignedIP6 net.IP
+	connectedAt time.Time
+	writeMu     sync.Mutex
+	ready       atomic.Bool
+	rxBytes     atomic.Int64
+	txBytes     atomic.Int64
 }
 
-func (c *tunnelConn) AssignedIP() net.IP { return c.assignedIP }
+func (c *tunnelConn) AssignedIP() net.IP  { return c.assignedIP }
 func (c *tunnelConn) AssignedIP6() net.IP { return c.assignedIP6 }
 
 func (c *tunnelConn) WritePacket(data []byte) error {
@@ -128,7 +131,10 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 	}
 
 	VPN.registerClient(tc)
-	defer VPN.unregisterClient(tc)
+	defer func() {
+		recordTraffic(tc.rxBytes.Load(), tc.txBytes.Load())
+		VPN.unregisterClient(tc)
+	}()
 
 	settings := VPN.Settings()
 	initMsg := initMessage{
@@ -220,5 +226,22 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 		for _, t := range targets {
 			_ = t.WritePacket(data)
 		}
+	}
+}
+
+func recordTraffic(rx, tx int64) {
+	if rx == 0 && tx == 0 {
+		return
+	}
+	today := time.Now().Format("2006-01-02")
+	stat := model.TrafficStat{Date: today, RxBytes: rx, TxBytes: tx}
+	if err := db.DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "date"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"rx_bytes": gorm.Expr("rx_bytes + ?", rx),
+			"tx_bytes": gorm.Expr("tx_bytes + ?", tx),
+		}),
+	}).Create(&stat).Error; err != nil {
+		log.Printf("记录流量失败: %v", err)
 	}
 }

@@ -28,6 +28,7 @@ func Setup(r *gin.Engine) {
 	admin := r.Group("/api/admin")
 	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
 	{
+		admin.GET("/stats", handler.GetAdminStats)
 		admin.GET("/users/count", handler.GetUserCount)
 		admin.GET("/users", handler.ListUsers)
 		admin.POST("/users", handler.CreateUser)

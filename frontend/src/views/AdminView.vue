@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -17,6 +17,17 @@ const stats = ref([
 ])
 
 const userCount = ref<number | null>(null)
+let statsTimer: ReturnType<typeof setInterval> | null = null
+
+function formatUptime(seconds: number): string {
+  if (seconds <= 0) return '0m'
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (d > 0) return `${d}d ${h}h`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
 
 async function fetchUserCount() {
   try {
@@ -32,9 +43,33 @@ async function fetchUserCount() {
   } catch {}
 }
 
+async function fetchStats() {
+  try {
+    const res = await fetch('/api/admin/stats', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const set = (label: string, value: string) => {
+      const stat = stats.value.find(s => s.label === label)
+      if (stat) stat.value = value
+    }
+    set('admin.uptime', formatUptime(data.uptime_seconds))
+    set('admin.activeDevices', String(data.active_devices))
+    set('admin.todayTraffic', (data.today_traffic_bytes / 1e9).toFixed(2))
+    set('admin.onlineNodes', String(data.online_nodes))
+  } catch {}
+}
+
 onMounted(async () => {
   await authStore.fetchUser()
   fetchUserCount()
+  fetchStats()
+  statsTimer = setInterval(fetchStats, 30000)
+})
+
+onUnmounted(() => {
+  if (statsTimer) clearInterval(statsTimer)
 })
 
 function handleStatClick(route: string) {

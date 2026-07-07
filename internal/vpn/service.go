@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	"lmvpn/internal/model"
 
@@ -13,21 +14,22 @@ import (
 )
 
 type VpnService struct {
-	mu       sync.RWMutex
-	settings model.VpnSetting
-	net      *net.IPNet
-	serverIP net.IP
-	prefix   int
-	alloc    *AllocationManager
-	net6     *net.IPNet
+	mu        sync.RWMutex
+	settings  model.VpnSetting
+	net       *net.IPNet
+	serverIP  net.IP
+	prefix    int
+	alloc     *AllocationManager
+	net6      *net.IPNet
 	serverIP6 net.IP
 	prefix6   int
-	alloc6   *AllocationManager
-	switchx  *PacketSwitch
-	tun      *TUNInterface
-	tunDone  chan struct{}
-	running  bool
-	clients  map[*tunnelConn]struct{}
+	alloc6    *AllocationManager
+	switchx   *PacketSwitch
+	tun       *TUNInterface
+	tunDone   chan struct{}
+	running   bool
+	startedAt time.Time
+	clients   map[*tunnelConn]struct{}
 }
 
 func NewVpnService() *VpnService {
@@ -40,6 +42,22 @@ func (s *VpnService) Running() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.running
+}
+
+func (s *VpnService) StartedAt() time.Time {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.startedAt
+}
+
+func (s *VpnService) TotalLiveTraffic() (rx, tx int64) {
+	s.mu.RLock()
+	for c := range s.clients {
+		rx += c.rxBytes.Load()
+		tx += c.txBytes.Load()
+	}
+	s.mu.RUnlock()
+	return
 }
 
 func (s *VpnService) Settings() model.VpnSetting {
@@ -133,6 +151,7 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations4, res
 	s.tun = tun
 	s.tunDone = make(chan struct{})
 	s.running = true
+	s.startedAt = time.Now()
 	s.mu.Unlock()
 
 	go s.serveTUN()
