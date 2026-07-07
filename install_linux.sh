@@ -14,8 +14,9 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-echo ">>> 拉取最新代码..."
-git pull
+echo ">>> 拉取最新代码（强制覆盖本地修改）..."
+git fetch origin
+git reset --hard origin/main
 
 echo ">>> 安装前端依赖并构建..."
 cd frontend
