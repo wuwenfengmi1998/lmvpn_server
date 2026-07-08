@@ -25,7 +25,11 @@ npm run build
 cd ..
 
 echo ">>> 编译 Go 后端..."
-go build -o lmvpn .
+VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
+COMMIT=$(git rev-parse --short HEAD)
+COMMIT_TIME=$(git log -1 --format=%cI)
+BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+go build -ldflags "-X lmvpn/internal/version.Version=$VERSION -X lmvpn/internal/version.Commit=$COMMIT -X lmvpn/internal/version.CommitTime=$COMMIT_TIME -X lmvpn/internal/version.BuildTime=$BUILD_TIME" -o lmvpn .
 
 echo ">>> 创建 lmvpn 系统用户..."
 if ! id lmvpn &>/dev/null; then

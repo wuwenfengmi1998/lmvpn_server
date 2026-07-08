@@ -15,6 +15,7 @@ func Setup(r *gin.Engine) {
 	r.GET("/ws", vpn.HandleWS)
 
 	r.POST("/api/login", middleware.LoginRateLimit(), handler.Login)
+	r.GET("/api/version", handler.GetVersion)
 
 	auth := r.Group("/api")
 	auth.Use(middleware.AuthMiddleware())

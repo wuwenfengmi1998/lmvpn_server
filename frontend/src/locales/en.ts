@@ -149,6 +149,9 @@ export default {
     selectUserAndIp: 'Please select a user and fill in at least one IP address',
     confirmDeleteReservation: 'Delete this reservation?',
   },
+  footer: {
+    lastCommit: 'Last commit',
+  },
   home: {
     tagline: 'Secure, fast, and reliable VPN tunnel management system',
     secureTunnel: 'Secure Tunnel',

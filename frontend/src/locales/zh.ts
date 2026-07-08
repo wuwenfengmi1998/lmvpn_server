@@ -148,6 +148,9 @@ export default {
     selectUserAndIp: '请选择用户并至少填写一个 IP 地址',
     confirmDeleteReservation: '确认删除该预留？',
   },
+  footer: {
+    lastCommit: '最后提交',
+  },
   home: {
     tagline: '安全、快速、可靠的 VPN 隧道管理系统',
     secureTunnel: '安全隧道',
