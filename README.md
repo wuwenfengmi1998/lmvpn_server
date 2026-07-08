@@ -2,7 +2,7 @@
 
 基于 WebSocket 隧道与 TUN 虚拟网卡的轻量级三层 VPN 系统，采用 Go + Vue 3 构建。服务端通过 WebSocket 与客户端建立控制通道，TUN 网卡与 WebSocket 之间双向搬运原始 IP 数据包，实现点对点与点对站点网络连接。
 
-> **平台说明**：服务端部署**目前仅在 Linux 下测试功能正常**（systemd + nftables/iptables NAT）。配套客户端见 [lmvpn_client](https://github.com/wuwenfengmi1998/lmvpn_client)，客户端协议规范见 [`docs/client-development.md`](docs/client-development.md)。
+> **平台说明**：服务端部署**目前仅在 Linux 下测试功能正常**（systemd + nftables/iptables NAT，自动兼容 UFW）。配套客户端见 [lmvpn_client](https://github.com/wuwenfengmi1998/lmvpn_client)，客户端协议规范见 [`docs/client-development.md`](docs/client-development.md)。
 
 ---
 
@@ -28,14 +28,14 @@
 - **Go**：≥ 1.26.4
 - **Node.js**：≥ 22.18（用于构建前端）
 - **内核**：支持 TUN 设备（`/dev/net/tun`），开启 `ip_forward`
-- **防火墙工具**：nftables（推荐）或 iptables
+- **防火墙工具**：nftables（推荐）或 iptables，兼容 UFW
 - **网络**：公网 IP，开放 Web 端口（或经反向代理）
 
 ---
 
 ## 一键部署（Linux，推荐）
 
-仓库自带 `install_linux.sh`，一条命令完成构建、部署、网络配置与 systemd 服务安装。
+仓库自带 `install_linux.sh`，一条命令完成构建、部署、内核转发配置与 systemd 服务安装。NAT / 转发 / UFW 规则由服务端程序在启动时根据后台子网配置自动管理，无需手动设置。
 
 ```bash
 git clone <仓库地址> lmvpn_server
@@ -51,22 +51,19 @@ sudo bash install_linux.sh
 4. 创建无 shell 的系统用户 `lmvpn`
 5. 停止旧服务，部署到 `/opt/lmvpn`（二进制 + `dist/`），属主改为 `lmvpn`
 6. 开启内核 IP 转发（IPv4 / IPv6），写入 `/etc/sysctl.d/99-lmvpn.conf`
-7. 配置 NAT 与转发规则：自动检测出口网卡，优先 nft，回退 iptables
-8. 安装 systemd 服务 `/etc/systemd/system/lmvpn.service`，以 `lmvpn` 用户运行并授予 `CAP_NET_ADMIN` / `CAP_NET_RAW`
-9. 启动服务并打印状态
+7. 安装 systemd 服务 `/etc/systemd/system/lmvpn.service`，以 `lmvpn` 用户运行并授予 `CAP_NET_ADMIN` / `CAP_NET_RAW`
+8. 启动服务（NAT / 转发 / UFW 规则由程序在启动时根据后台子网自动配置）
 
 > ⚠️ 脚本中的 `git reset --hard origin/main` 会**丢弃所有本地未提交改动**。部署前请确保工作区干净，或先提交/暂存。
 
-### 子网变量
+### 防火墙规则自动管理
 
-脚本顶部有两个变量需与后台 VPN 设置保持一致：
+NAT masquerade、forward 放行、UFW 转发规则由服务端程序在 `ApplySettings()` 时根据当前后台 VPN 子网动态配置：
 
-```bash
-VPN_SUBNET="192.168.77.0/24"        # IPv4 子网
-VPN_SUBNET6="fd00:dead:beef::/112"  # IPv6 子网，留空则不配置 IPv6 NAT
-```
-
-若在管理后台修改了子网，需同步修改此处并重新执行脚本，或手动更新 NAT 规则，否则客户端无法上网。
+- 自动检测出口网卡（`ip route show default`）
+- 配置 nft `lmvpn_nat` 表的 postrouting masquerade 和 forward accept 规则
+- 检测 UFW 是否启用（存在 `ufw-user-forward` 链），若启用则自动创建 `lmvpn-fwd` / `lmvpn6-fwd` 链并注入 jump
+- 在后台修改子网后保存即可，程序自动更新规则，无需重新执行脚本
 
 ---
 
@@ -90,7 +87,7 @@ VPN_SUBNET6="fd00:dead:beef::/112"  # IPv6 子网，留空则不配置 IPv6 NAT
 
 4. **启用 VPN**：进入「管理后台 → VPN 管理」，确认子网（默认 `192.168.77.0/24` + IPv6 `fd00:dead:beef::/112`），打开「启用」并保存。
 
-5. **诊断检查**：VPN 管理页的「系统环境检测」面板（对应 `GET /api/admin/vpn/diag`）会检测 ip_forward、NAT、TUN 等，客户端无法上网时优先查看此处。
+5. **诊断检查**：VPN 管理页的「系统环境检测」面板（对应 `GET /api/admin/vpn/diag`）会检测 ip_forward、NAT、UFW 转发规则、TUN 等，客户端无法上网时优先查看此处。
 
 ---
 
@@ -134,7 +131,12 @@ EOF
 sudo sysctl -p /etc/sysctl.d/99-lmvpn.conf
 ```
 
-### 4. 配置 NAT（nft 示例）
+### 4. 安装 systemd 服务
+
+> NAT / 转发 / UFW 规则由服务端程序在启动时自动配置，无需手动设置。以下命令仅在程序无法自动配置防火墙时作为参考。
+
+<details>
+<summary>手动配置 NAT（点击展开，通常不需要）</summary>
 
 将 `WAN_IFACE` 替换为出口网卡，`VPN_SUBNET` 替换为 VPN 子网：
 
@@ -151,6 +153,17 @@ sudo nft 'add chain inet lmvpn_nat forward { type filter hook forward priority 0
 sudo nft add rule inet lmvpn_nat forward ip saddr "$VPN_SUBNET" accept
 sudo nft add rule inet lmvpn_nat forward ip daddr "$VPN_SUBNET" accept
 ```
+
+若启用了 UFW，还需放行 VPN 子网转发：
+
+```bash
+sudo ufw route allow from "$VPN_SUBNET"
+sudo ufw route allow to "$VPN_SUBNET"
+sudo ufw route allow from "$VPN_SUBNET6"
+sudo ufw route allow to "$VPN_SUBNET6"
+```
+
+</details>
 
 ### 5. 安装 systemd 服务
 
@@ -331,7 +344,7 @@ sudo bash install_linux.sh
   - `middleware/` — 中间件（认证、限流）
   - `model/` — 数据模型
   - `router/` — 路由
-  - `vpn/` — VPN 核心（认证、隧道、TUN、包转发）
+  - `vpn/` - VPN 核心（认证、隧道、TUN、包转发、防火墙自动配置）
 - `docs/` — 文档
 - `pytest/` — Python 测试脚本
 - `install_linux.sh` — Linux 一键部署脚本
@@ -344,10 +357,10 @@ sudo bash install_linux.sh
 | 现象 | 可能原因 | 排查建议 |
 |------|----------|----------|
 | 服务启动失败 | socket 目录不可写 / 端口占用 | `journalctl -u lmvpn`；设 `sock: ""` 或换可写目录 |
-| 客户端连上但无法上网 | 未开 ip_forward / 未配 NAT / 子网不一致 | 管理后台诊断面板；核对脚本 `VPN_SUBNET` 与后台设置 |
+| 客户端连上但无法上网 | 未开 ip_forward / NAT 未生效 / UFW 拦截 | 管理后台诊断面板查看 UFW 状态和 NAT 检测结果 |
+| 客户端连上但下行极慢（几十 bps） | UFW FORWARD 默认 DROP 拦截 TCP 包 | 诊断面板检查 UFW 转发规则；重启服务使程序自动配置 UFW |
 | 登录提示「请求过于频繁」 | 触发限流（`/api/login` 5 次/分钟·IP） | 等待 1 分钟后重试 |
-| 修改子网后客户端异常 | NAT 规则仍是旧子网 | 同步脚本变量并重跑 `install_linux.sh` |
-| WebSocket 频繁断开 | 反代未透传 `Upgrade`/`Connection` 头 | 检查反代 `/ws` 配置；调大读超时 |
+| 修改子网后客户端异常 | 旧防火墙规则残留 | 后台重新保存设置，程序自动更新 NAT / UFW 规则 |
 | 忘记管理员密码 | — | 删除 `data/lmvpn.db` 重新初始化（会丢失所有数据），或直接改库 |
 
 ---
