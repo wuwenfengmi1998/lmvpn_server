@@ -62,7 +62,7 @@ export default {
   about: {
     title: '关于 LmVPN',
     description:
-      'LmVPN 是一款轻量级 VPN 隧道管理系统，采用 Go + Vue 3 技术栈构建。支持多种 VPN 协议，提供安全可靠的点对点与点对站点网络连接方案。',
+      'LmVPN 是一款基于 WebSocket 隧道与 TUN 虚拟网卡的轻量级三层 VPN 系统，采用 Go + Vue 3 构建。支持多用户管理、IPv4/IPv6 双栈、静态 IP 预留与流量统计，提供点对点与点对站点网络连接方案。',
   },
   admin: {
     title: '管理后台',
@@ -152,15 +152,26 @@ export default {
     lastCommit: '最后提交',
   },
   home: {
-    tagline: '安全、快速、可靠的 VPN 隧道管理系统',
-    secureTunnel: '安全隧道',
-    secureTunnelDesc:
-      '基于 WireGuard/OpenVPN 协议，端到端加密传输，保障数据安全无泄漏。',
-    multiDevice: '多设备支持',
-    multiDeviceDesc: '同时连接多台设备，手机、电脑、路由器全平台覆盖。',
-    trafficMonitor: '流量监控',
-    trafficMonitorDesc: '实时流量统计与带宽分析，随时掌握网络使用状况。',
-    easyConfig: '简易配置',
-    easyConfigDesc: '一键部署、自动配置，无需复杂网络知识即可上线。',
+    tagline: '基于 WebSocket 与 TUN 虚拟网卡的轻量级三层 VPN 隧道管理系统',
+    tunnel: 'WebSocket 隧道',
+    tunnelDesc:
+      '基于 WebSocket 与 TUN 虚拟网卡的三层隧道，经反向代理提供 WSS/TLS 传输安全。',
+    userManage: '多用户管理',
+    userManageDesc:
+      '管理员与普通角色，支持用户增删改、启用禁用与改密，内置自保护规则。',
+    multiDevice: '多设备并发',
+    multiDeviceDesc: '每用户最多 3 个并发连接，自动分配隧道 IP 地址。',
+    dualStack: 'IPv4/IPv6 双栈',
+    dualStackDesc: '同时支持 IPv4 与 IPv6 子网，NAT 双栈转发与源地址反欺骗。',
+    reservation: '静态 IP 预留',
+    reservationDesc:
+      '按用户预留固定 IPv4/IPv6 地址，自动校验子网合法性与唯一性。',
+    traffic: '流量统计',
+    trafficDesc: '实时统计在线设备与流量，按日聚合记录网络使用状况。',
+    session: '会话管理',
+    sessionDesc:
+      'JWT 令牌会话，支持自行注销与管理员强制下线，状态变更级联失效。',
+    deploy: '一键部署与诊断',
+    deployDesc: 'Linux 一键脚本部署，内置系统环境检测面板快速定位问题。',
   },
 }

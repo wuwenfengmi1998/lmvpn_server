@@ -62,7 +62,7 @@ export default {
   about: {
     title: 'About LmVPN',
     description:
-      'LmVPN is a lightweight VPN tunnel management system built with Go + Vue 3. It supports multiple VPN protocols and provides secure and reliable point-to-point and point-to-site networking solutions.',
+      'LmVPN is a lightweight Layer-3 VPN system built on WebSocket tunnels and TUN virtual NICs using Go + Vue 3. It supports multi-user management, IPv4/IPv6 dual-stack, static IP reservations, and traffic statistics for point-to-point and point-to-site networking.',
   },
   admin: {
     title: 'Admin Dashboard',
@@ -153,18 +153,31 @@ export default {
     lastCommit: 'Last commit',
   },
   home: {
-    tagline: 'Secure, fast, and reliable VPN tunnel management system',
-    secureTunnel: 'Secure Tunnel',
-    secureTunnelDesc:
-      'Based on WireGuard/OpenVPN protocols with end-to-end encryption to keep your data safe.',
-    multiDevice: 'Multi-Device Support',
+    tagline:
+      'A lightweight Layer-3 VPN tunnel management system built on WebSocket and TUN virtual NICs',
+    tunnel: 'WebSocket Tunnel',
+    tunnelDesc:
+      'Layer-3 tunnel over WebSocket and TUN virtual NICs, with WSS/TLS transport security via reverse proxy.',
+    userManage: 'Multi-User Management',
+    userManageDesc:
+      'Admin and user roles with full user CRUD, enable/disable, and password changes, plus self-protection rules.',
+    multiDevice: 'Multi-Device Concurrent',
     multiDeviceDesc:
-      'Connect multiple devices simultaneously — phones, computers, and routers all supported.',
-    trafficMonitor: 'Traffic Monitoring',
-    trafficMonitorDesc:
-      'Real-time traffic statistics and bandwidth analysis to stay on top of network usage.',
-    easyConfig: 'Easy Configuration',
-    easyConfigDesc:
-      'One-click deployment with auto-configuration — no advanced networking knowledge required.',
+      'Up to 3 concurrent connections per user with automatic tunnel IP assignment.',
+    dualStack: 'IPv4/IPv6 Dual-Stack',
+    dualStackDesc:
+      'Supports both IPv4 and IPv6 subnets with NAT dual-stack forwarding and anti-spoofing.',
+    reservation: 'Static IP Reservation',
+    reservationDesc:
+      'Reserve fixed IPv4/IPv6 addresses per user with automatic subnet and uniqueness validation.',
+    traffic: 'Traffic Statistics',
+    trafficDesc:
+      'Real-time online device and traffic statistics with daily aggregated records.',
+    session: 'Session Management',
+    sessionDesc:
+      'JWT token sessions with self-revocation and admin force-logout, with cascading invalidation.',
+    deploy: 'One-Click Deploy & Diagnostics',
+    deployDesc:
+      'One-click Linux deployment script with a built-in system environment diagnostics panel.',
   },
 }
