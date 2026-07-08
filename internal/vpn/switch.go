@@ -106,6 +106,16 @@ func parseIPAddrs(packet []byte) (src, dest net.IP, ok bool) {
 	return nil, nil, false
 }
 
+// dropPacket is a sentinel non-nil, non-empty slice that signals the caller
+// to silently drop the packet (do not write to TUN, do not relay).
+var dropPacket = []SwitchConn{nil}
+
+// isDrop returns true if the result from RouteFromClient indicates the packet
+// should be silently dropped rather than forwarded to TUN or relayed.
+func isDrop(targets []SwitchConn) bool {
+	return len(targets) == 1 && targets[0] == nil
+}
+
 func (s *PacketSwitch) allowC2C() bool {
 	s.mu.RLock()
 	v := s.allowClientToClient
@@ -113,21 +123,24 @@ func (s *PacketSwitch) allowC2C() bool {
 	return v
 }
 
+// RouteFromClient returns the list of target connections to relay the packet to.
+// Returns nil to indicate the packet should be written to TUN (internet-bound).
+// Returns dropPacket to indicate the packet should be silently dropped (e.g. anti-spoof).
 func (s *PacketSwitch) RouteFromClient(src SwitchConn, packet []byte) []SwitchConn {
 	srcIP, dest, ok := parseIPAddrs(packet)
 	if !ok {
-		return nil
+		return dropPacket
 	}
 	// anti-spoof: enforce assigned source IP by version
 	if srcIP != nil {
 		if srcIP.To4() != nil {
 			if !srcIP.Equal(src.AssignedIP()) {
-				return nil
+				return dropPacket
 			}
 		} else {
 			assigned6 := src.AssignedIP6()
 			if assigned6 == nil || !srcIP.Equal(assigned6) {
-				return nil
+				return dropPacket
 			}
 		}
 	}
@@ -140,7 +153,7 @@ func (s *PacketSwitch) RouteFromClient(src SwitchConn, packet []byte) []SwitchCo
 	if s.allowC2C() {
 		return s.allExcept(src)
 	}
-	return nil
+	return dropPacket
 }
 
 func (s *PacketSwitch) RouteFromTUN(packet []byte) []SwitchConn {

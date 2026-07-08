@@ -155,6 +155,14 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations4, res
 	s.mu.Unlock()
 
 	go s.serveTUN()
+
+	subnet4 := ipNet.String()
+	var subnet6Str string
+	if ipNet6 != nil {
+		subnet6Str = ipNet6.String()
+	}
+	configureFirewall(subnet4, subnet6Str, tun.Name())
+
 	log.Printf("VPN 服务已启动: tun=%s subnet=%s server=%s", tun.Name(), ipNet.String(), serverIP.String())
 	if ipNet6 != nil {
 		log.Printf("  IPv6: subnet=%s server=%s", ipNet6.String(), serverIP6.String())

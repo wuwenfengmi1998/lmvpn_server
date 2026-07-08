@@ -34,6 +34,15 @@ func fillPlatformDiag(r *DiagResult) {
 	m6, note6 := checkMasquerade6()
 	r.Masquerade6 = m6
 	r.Masquerade6Note = note6
+
+	ufwActive := checkUFWActive()
+	r.UFWActive = &ufwActive
+	if ufwActive {
+		ufwOk, ufwNote := checkUFWForward()
+		if !ufwOk {
+			r.UFWForwardNote = ufwNote
+		}
+	}
 }
 
 func ptrBool(b bool) *bool { return &b }
@@ -162,4 +171,32 @@ func checkMasquerade6() (*bool, string) {
 	}
 
 	return nil, "ip6tables 与 nft 均未安装，无法检测 IPv6 NAT 规则"
+}
+
+// checkUFWForward checks if VPN forward rules exist in UFW's user-forward chains.
+func checkUFWForward() (bool, string) {
+	nftPath := findExecutable("nft")
+	if nftPath == "" {
+		return true, ""
+	}
+
+	// Check IPv4
+	out, err := exec.Command(nftPath, "list", "chain", "ip", "filter", "ufw-user-forward").Output()
+	if err == nil {
+		s := string(out)
+		if !strings.Contains(s, "jump lmvpn-fwd") && !strings.Contains(s, "192.168.") {
+			return false, "UFW 已启用但 IPv4 转发规则未配置，客户端可能无法上网"
+		}
+	}
+
+	// Check IPv6
+	out6, err := exec.Command(nftPath, "list", "chain", "ip6", "filter", "ufw6-user-forward").Output()
+	if err == nil {
+		s := string(out6)
+		if !strings.Contains(s, "jump lmvpn6-fwd") && !strings.Contains(s, "fd00:") {
+			return false, "UFW 已启用但 IPv6 转发规则未配置，IPv6 客户端可能无法上网"
+		}
+	}
+
+	return true, ""
 }

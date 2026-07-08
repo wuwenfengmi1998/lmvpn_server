@@ -18,6 +18,8 @@ type DiagResult struct {
 	IP6ForwardNote   string `json:"ip6_forward_note,omitempty"`
 	Masquerade6      *bool  `json:"masquerade6"`
 	Masquerade6Note  string `json:"masquerade6_note,omitempty"`
+	UFWActive        *bool  `json:"ufw_active"`
+	UFWForwardNote   string `json:"ufw_forward_note,omitempty"`
 	TUNCreate        string `json:"tun_create"`
 	TUNRunning       bool   `json:"tun_running"`
 	TUNName          string `json:"tun_name,omitempty"`

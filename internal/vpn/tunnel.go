@@ -217,6 +217,9 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 		tc.rxBytes.Add(int64(len(data)))
 
 		targets := VPN.RouteFromClient(tc, data)
+		if isDrop(targets) {
+			continue
+		}
 		if len(targets) == 0 {
 			if err := VPN.WriteToTUN(data); err != nil {
 				log.Printf("用户 %s 写入 TUN 失败: %v", user.Username, err)
