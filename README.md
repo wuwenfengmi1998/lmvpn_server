@@ -19,6 +19,7 @@
 - [目录说明](#目录说明)
 - [常见问题排查](#常见问题排查)
 - [相关文档](#相关文档)
+- [许可证](#许可证)
 
 ---
 
@@ -378,3 +379,11 @@ sudo bash install_linux.sh
 - `/api/login` 与 WebSocket 密码认证均限制每 IP 5 次/分钟
 - WebSocket `/ws` 支持 JWT（`?token=xxx`）与用户名/密码两种认证
 - 生产环境务必经反向代理启用 HTTPS/WSS
+
+---
+
+## 许可证
+
+本项目基于 [MIT License](LICENSE) 开源。
+
+Copyright (c) 2026 wuwenfengmi1998
