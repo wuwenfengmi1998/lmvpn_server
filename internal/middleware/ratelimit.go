@@ -84,3 +84,12 @@ func LoginRateLimit() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// BodyLimit 限制请求体大小，防止内存耗尽型 DoS。
+// 对所有 /api JSON 端点生效；WebSocket 走连接劫持，握手阶段不受影响。
+func BodyLimit(max int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, max)
+		c.Next()
+	}
+}

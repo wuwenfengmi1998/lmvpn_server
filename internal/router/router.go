@@ -14,11 +14,13 @@ import (
 func Setup(r *gin.Engine) {
 	r.GET("/ws", vpn.HandleWS)
 
-	r.POST("/api/login", middleware.LoginRateLimit(), handler.Login)
+	bodyLimit := middleware.BodyLimit(1 << 20) // 1 MiB
+
+	r.POST("/api/login", bodyLimit, middleware.LoginRateLimit(), handler.Login)
 	r.GET("/api/version", handler.GetVersion)
 
 	auth := r.Group("/api")
-	auth.Use(middleware.AuthMiddleware())
+	auth.Use(middleware.AuthMiddleware(), bodyLimit)
 	{
 		auth.GET("/me", handler.Me)
 		auth.PUT("/me/password", handler.ChangePassword)
@@ -27,7 +29,7 @@ func Setup(r *gin.Engine) {
 	}
 
 	admin := r.Group("/api/admin")
-	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
+	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware(), bodyLimit)
 	{
 		admin.GET("/stats", handler.GetAdminStats)
 		admin.GET("/users/count", handler.GetUserCount)

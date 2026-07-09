@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,6 +13,22 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const (
+	minPasswordLen = 6
+	maxPasswordLen = 72 // bcrypt 硬上限：超过 72 字节会被 bcrypt 截断或报错
+)
+
+func validatePassword(pw string) error {
+	n := len(pw)
+	if n < minPasswordLen {
+		return errors.New("密码长度不能少于6位")
+	}
+	if n > maxPasswordLen {
+		return errors.New("密码长度不能超过72字节")
+	}
+	return nil
+}
 
 type loginRequest struct {
 	Username string `json:"username" binding:"required"`
@@ -93,8 +110,8 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
-	if len(req.NewPassword) < 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "新密码长度不能少于6位"})
+	if err := validatePassword(req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
