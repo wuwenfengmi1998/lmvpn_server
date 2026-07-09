@@ -33,7 +33,7 @@ func defaultConfig() *Config {
 	return &Config{
 		Web: WebConfig{
 			Port:        8080,
-			Sock:        "/run/lmvpnweb.sock",
+			Sock:        "web.sock",
 			SockMode:    "0666",
 			SockDirMode: "0755",
 		},
