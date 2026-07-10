@@ -59,6 +59,9 @@ export default {
     enterOldAndNewPassword: '请填写原密码和新密码',
     passwordsDoNotMatch: '两次输入的新密码不一致',
     passwordChangeFailed: '密码修改失败',
+    myVpnConnections: '我的 VPN 连接',
+    noConnections: '暂无在线连接',
+    abnormalConnectionHint: '如发现异常连接，请修改密码以断开所有设备',
   },
   about: {
     title: '关于 LmVPN',

@@ -208,6 +208,42 @@ func UpdateVpnSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "设置已更新"})
 }
 
+type myVpnConnection struct {
+	IP          string `json:"ip"`
+	IP6         string `json:"ip6,omitempty"`
+	ConnectedAt string `json:"connected_at"`
+}
+
+func GetMyVpnConnections(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	maxConns := 30
+	if vpn.VPN != nil {
+		s := vpn.VPN.Settings()
+		if s.MaxConnsPerUser > 0 {
+			maxConns = s.MaxConnsPerUser
+		}
+	}
+
+	connections := make([]myVpnConnection, 0)
+	if vpn.VPN != nil && vpn.VPN.Running() {
+		for _, ci := range vpn.VPN.ClientList() {
+			if ci.UserID == userID.(uint) {
+				connections = append(connections, myVpnConnection{
+					IP:          ci.IP,
+					IP6:         ci.IP6,
+					ConnectedAt: ci.ConnectedAt,
+				})
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"max_conns_per_user": maxConns,
+		"connections":        connections,
+	})
+}
+
 type vpnStatusResponse struct {
 	Enabled   bool             `json:"enabled"`
 	Online    int              `json:"online"`

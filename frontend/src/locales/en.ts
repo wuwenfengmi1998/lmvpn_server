@@ -59,6 +59,9 @@ export default {
     enterOldAndNewPassword: 'Please enter current and new password',
     passwordsDoNotMatch: 'The two passwords do not match',
     passwordChangeFailed: 'Failed to change password',
+    myVpnConnections: 'My VPN Connections',
+    noConnections: 'No active connections',
+    abnormalConnectionHint: 'If you notice any abnormal connections, please change your password to disconnect all devices.',
   },
   about: {
     title: 'About LmVPN',

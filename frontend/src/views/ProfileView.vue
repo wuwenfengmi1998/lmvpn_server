@@ -8,8 +8,29 @@ const authStore = useAuthStore()
 const router = useRouter()
 const { t } = useI18n()
 
+interface VpnConnection {
+  ip: string
+  ip6?: string
+  connected_at: string
+}
+const vpnConnections = ref<VpnConnection[]>([])
+const maxConns = ref(30)
+
+async function fetchVpnConnections() {
+  try {
+    const res = await fetch('/api/me/vpn/connections', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    vpnConnections.value = data.connections || []
+    maxConns.value = data.max_conns_per_user || 30
+  } catch {}
+}
+
 onMounted(async () => {
   await authStore.fetchUser()
+  fetchVpnConnections()
 })
 
 const showPasswordModal = ref(false)
@@ -71,6 +92,35 @@ async function handleChangePassword() {
         <p><span class="font-medium text-gray-900 dark:text-white">{{ t('profile.usernameLabel') }}</span>{{ authStore.user?.username }}</p>
         <p><span class="font-medium text-gray-900 dark:text-white">{{ t('profile.roleLabel') }}</span>{{ authStore.user?.role === 'admin' ? t('common.admin') : t('common.normalUser') }}</p>
       </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+      <div class="flex items-center justify-between p-6 pb-4">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('profile.myVpnConnections') }}</h3>
+        <span class="px-3 py-1 text-sm font-medium rounded-full" :class="vpnConnections.length > 0 ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'">
+          {{ vpnConnections.length }} / {{ maxConns }}
+        </span>
+      </div>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="!vpnConnections.length">
+            <td colspan="3" class="px-6 py-6 text-center text-gray-400">{{ t('profile.noConnections') }}</td>
+          </tr>
+          <tr v-for="(c, i) in vpnConnections" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '-' }}</td>
+            <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 px-6 py-4">{{ t('profile.abnormalConnectionHint') }}</p>
     </div>
 
     <button

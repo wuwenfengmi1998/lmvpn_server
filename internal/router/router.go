@@ -26,6 +26,7 @@ func Setup(r *gin.Engine) {
 		auth.PUT("/me/password", handler.ChangePassword)
 		auth.GET("/me/sessions", handler.ListMySessions)
 		auth.DELETE("/me/sessions/:sessionId", handler.RevokeMySession)
+		auth.GET("/me/vpn/connections", handler.GetMyVpnConnections)
 	}
 
 	admin := r.Group("/api/admin")
