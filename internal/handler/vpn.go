@@ -474,12 +474,11 @@ func KickUserClient(c *gin.Context) {
 	}
 
 	n := 0
+	db.DB.Model(&user).Update("status", 0)
+	db.DB.Model(&model.Session{}).Where("user_id = ?", id).Update("invalid", true)
 	if vpn.VPN != nil && vpn.VPN.Running() {
 		n = vpn.VPN.KickUser(uint(id))
 	}
-
-	db.DB.Model(&user).Update("status", 0)
-	db.DB.Model(&model.Session{}).Where("user_id = ?", id).Update("invalid", true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "已断开用户连接并禁用账号", "kicked": n})
 }
