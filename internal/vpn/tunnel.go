@@ -79,6 +79,7 @@ func (c *tunnelConn) close() {
 
 func (c *tunnelConn) info() ClientInfo {
 	ci := ClientInfo{
+		UserID:      c.user.ID,
 		Username:    c.user.Username,
 		IP:          c.assignedIP.String(),
 		ConnectedAt: c.connectedAt.Format("2006-01-02 15:04:05"),

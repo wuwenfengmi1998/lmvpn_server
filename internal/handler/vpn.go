@@ -406,3 +406,26 @@ func DeleteVpnReservation(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
 }
+
+func KickUserClient(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	var user model.User
+	if err := db.DB.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		return
+	}
+
+	if vpn.VPN == nil || !vpn.VPN.Running() {
+		c.JSON(http.StatusOK, gin.H{"message": "VPN 服务未运行", "kicked": 0})
+		return
+	}
+
+	n := vpn.VPN.KickUser(uint(id))
+	c.JSON(http.StatusOK, gin.H{"message": "已断开用户连接", "kicked": n})
+}

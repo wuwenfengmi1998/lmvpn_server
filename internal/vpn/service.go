@@ -374,10 +374,26 @@ func (s *VpnService) ClientList() []ClientInfo {
 }
 
 type ClientInfo struct {
+	UserID      uint   `json:"user_id"`
 	Username    string `json:"username"`
 	IP          string `json:"ip"`
 	IP6         string `json:"ip6,omitempty"`
 	ConnectedAt string `json:"connected_at"`
+}
+
+func (s *VpnService) KickUser(userID uint) int {
+	s.mu.RLock()
+	var toClose []*tunnelConn
+	for c := range s.clients {
+		if c.user.ID == userID {
+			toClose = append(toClose, c)
+		}
+	}
+	s.mu.RUnlock()
+	for _, c := range toClose {
+		c.close()
+	}
+	return len(toClose)
 }
 
 var VPN *VpnService

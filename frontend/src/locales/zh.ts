@@ -147,6 +147,9 @@ export default {
     ipv6Address: 'IPv6 地址 (可选)',
     selectUserAndIp: '请选择用户并至少填写一个 IP 地址',
     confirmDeleteReservation: '确认删除该预留？',
+    kick: '踢下线',
+    confirmKick: '确定要断开用户 {username} 的所有 VPN 连接吗？',
+    kickFailed: '踢下线失败',
   },
   footer: {
     lastCommit: '最后提交',

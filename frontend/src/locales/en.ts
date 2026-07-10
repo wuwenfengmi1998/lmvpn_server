@@ -148,6 +148,9 @@ export default {
     ipv6Address: 'IPv6 Address (optional)',
     selectUserAndIp: 'Please select a user and fill in at least one IP address',
     confirmDeleteReservation: 'Delete this reservation?',
+    kick: 'Kick',
+    confirmKick: 'Disconnect all VPN connections for user {username}?',
+    kickFailed: 'Failed to kick user',
   },
   footer: {
     lastCommit: 'Last commit',

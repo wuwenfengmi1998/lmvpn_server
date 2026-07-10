@@ -18,6 +18,7 @@ interface Settings {
   do_remote_ip_config: boolean
 }
 interface ClientInfo {
+  user_id: number
   username: string
   ip: string
   ip6?: string
@@ -196,6 +197,21 @@ async function handleDeleteResv(id: number) {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || t('common.deleteFailed'))
     await fetchReservations()
+  } catch (e: any) {
+    error.value = e.message
+  }
+}
+
+async function handleKick(userId: number, username: string) {
+  if (!confirm(t('vpn.confirmKick', { username }))) return
+  try {
+    const res = await fetch(`/api/admin/vpn/clients/${userId}`, {
+      method: 'DELETE',
+      headers: authHeader(),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || t('vpn.kickFailed'))
+    await fetchStatus()
   } catch (e: any) {
     error.value = e.message
   }
@@ -425,17 +441,26 @@ onMounted(() => {
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!status?.clients?.length">
-            <td colspan="4" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
+            <td colspan="5" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
           </tr>
           <tr v-for="(c, i) in status?.clients" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
             <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ c.username }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '—' }}</td>
             <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>
+            <td class="px-6 py-3">
+              <button
+                class="px-3 py-1 text-xs rounded-md font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 transition-colors"
+                @click="handleKick(c.user_id, c.username)"
+              >
+                {{ t('vpn.kick') }}
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
