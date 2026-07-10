@@ -144,6 +144,10 @@ func UpdateUser(c *gin.Context) {
 	updates := map[string]interface{}{}
 
 	if req.Status != nil {
+		if user.ID == currentUserID.(uint) && *req.Status != 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "不能禁用自己的账号"})
+			return
+		}
 		updates["status"] = *req.Status
 	}
 
