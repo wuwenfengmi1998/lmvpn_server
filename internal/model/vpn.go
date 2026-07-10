@@ -45,3 +45,16 @@ type TrafficStat struct {
 func (TrafficStat) TableName() string {
 	return "traffic_stats"
 }
+
+type UserTrafficStat struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement"`
+	UserID    uint      `gorm:"uniqueIndex:idx_user_date;not null"`
+	Date      string    `gorm:"uniqueIndex:idx_user_date;size:10;not null"`
+	RxBytes   int64     `gorm:"default:0"`
+	TxBytes   int64     `gorm:"default:0"`
+	UpdatedAt time.Time
+}
+
+func (UserTrafficStat) TableName() string {
+	return "user_traffic_stats"
+}

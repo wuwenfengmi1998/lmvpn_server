@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import TrafficChart from '@/components/TrafficChart.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -15,6 +16,35 @@ interface VpnConnection {
 }
 const vpnConnections = ref<VpnConnection[]>([])
 const maxConns = ref(30)
+
+interface TrafficRecord {
+  date: string
+  rx_bytes: number
+  tx_bytes: number
+}
+const myTraffic7d = ref<TrafficRecord[]>([])
+const todayRx = ref(0)
+const todayTx = ref(0)
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i]
+}
+
+async function fetchMyTraffic() {
+  try {
+    const res = await fetch('/api/me/traffic?days=7', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    myTraffic7d.value = data.records || []
+    todayRx.value = data.today_rx_bytes || 0
+    todayTx.value = data.today_tx_bytes || 0
+  } catch {}
+}
 
 async function fetchVpnConnections() {
   try {
@@ -31,6 +61,7 @@ async function fetchVpnConnections() {
 onMounted(async () => {
   await authStore.fetchUser()
   fetchVpnConnections()
+  fetchMyTraffic()
 })
 
 const showPasswordModal = ref(false)
@@ -92,6 +123,26 @@ async function handleChangePassword() {
         <p><span class="font-medium text-gray-900 dark:text-white">{{ t('profile.usernameLabel') }}</span>{{ authStore.user?.username }}</p>
         <p><span class="font-medium text-gray-900 dark:text-white">{{ t('profile.roleLabel') }}</span>{{ authStore.user?.role === 'admin' ? t('common.admin') : t('common.normalUser') }}</p>
       </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('traffic.myTraffic') }}</h3>
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('traffic.upload') }}</p>
+          <p class="text-lg font-bold text-sky-600 dark:text-sky-400 tabular-nums">{{ formatBytes(todayRx) }}</p>
+        </div>
+        <div class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('traffic.download') }}</p>
+          <p class="text-lg font-bold text-green-600 dark:text-green-400 tabular-nums">{{ formatBytes(todayTx) }}</p>
+        </div>
+        <div class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('traffic.total') }}</p>
+          <p class="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{{ formatBytes(todayRx + todayTx) }}</p>
+        </div>
+      </div>
+      <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('traffic.trafficHistory7d') }}</h4>
+      <TrafficChart :records="myTraffic7d" />
     </div>
 
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">

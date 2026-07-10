@@ -40,10 +40,20 @@ type tunnelConn struct {
 	ready       atomic.Bool
 	rxBytes     atomic.Int64
 	txBytes     atomic.Int64
+	flushedRx   atomic.Int64
+	flushedTx   atomic.Int64
 }
 
 func (c *tunnelConn) AssignedIP() net.IP  { return c.assignedIP }
 func (c *tunnelConn) AssignedIP6() net.IP { return c.assignedIP6 }
+
+func (c *tunnelConn) flushDelta() (rx, tx int64) {
+	curRx := c.rxBytes.Load()
+	curTx := c.txBytes.Load()
+	rx = curRx - c.flushedRx.Swap(curRx)
+	tx = curTx - c.flushedTx.Swap(curTx)
+	return
+}
 
 func (c *tunnelConn) WritePacket(data []byte) error {
 	if !c.ready.Load() || len(data) == 0 {
@@ -82,6 +92,8 @@ func (c *tunnelConn) info() ClientInfo {
 		Username:    c.user.Username,
 		IP:          c.assignedIP.String(),
 		ConnectedAt: c.connectedAt.Format("2006-01-02 15:04:05"),
+		RxBytes:     c.rxBytes.Load(),
+		TxBytes:     c.txBytes.Load(),
 	}
 	if c.assignedIP6 != nil {
 		ci.IP6 = c.assignedIP6.String()
@@ -136,7 +148,8 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 
 	VPN.registerClient(tc)
 	defer func() {
-		recordTraffic(tc.rxBytes.Load(), tc.txBytes.Load())
+		rx, tx := tc.flushDelta()
+		recordTraffic(tc.user.ID, rx, tx)
 		VPN.unregisterClient(tc)
 	}()
 
@@ -236,11 +249,23 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 	}
 }
 
-func recordTraffic(rx, tx int64) {
+func recordTraffic(userID uint, rx, tx int64) {
 	if rx == 0 && tx == 0 {
 		return
 	}
 	today := time.Now().Format("2006-01-02")
+
+	userStat := model.UserTrafficStat{UserID: userID, Date: today, RxBytes: rx, TxBytes: tx}
+	if err := db.DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "user_id"}, {Name: "date"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"rx_bytes": gorm.Expr("rx_bytes + ?", rx),
+			"tx_bytes": gorm.Expr("tx_bytes + ?", tx),
+		}),
+	}).Create(&userStat).Error; err != nil {
+		log.Printf("记录用户流量失败: %v", err)
+	}
+
 	stat := model.TrafficStat{Date: today, RxBytes: rx, TxBytes: tx}
 	if err := db.DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "date"}},

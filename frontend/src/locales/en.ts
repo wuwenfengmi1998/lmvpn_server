@@ -95,6 +95,18 @@ export default {
       'Are you sure you want to delete user {username}? This action cannot be undone.',
     confirmDeleteButton: 'Confirm Delete',
   },
+  traffic: {
+    myTraffic: 'My Traffic',
+    userTrafficToday: "User Traffic Today",
+    todayTraffic: "Today's Traffic",
+    upload: 'Upload',
+    download: 'Download',
+    total: 'Total',
+    history: 'Traffic History',
+    date: 'Date',
+    noTrafficData: 'No traffic data',
+    trafficHistory7d: 'Traffic - Last 7 Days',
+  },
   vpn: {
     title: 'VPN Management',
     refresh: 'Refresh',

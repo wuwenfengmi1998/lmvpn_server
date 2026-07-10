@@ -94,6 +94,18 @@ export default {
     confirmDeleteMessage: '确定要删除用户 {username} 吗？此操作不可撤销。',
     confirmDeleteButton: '确认删除',
   },
+  traffic: {
+    myTraffic: '我的流量统计',
+    userTrafficToday: '用户今日流量',
+    todayTraffic: '今日流量',
+    upload: '上行',
+    download: '下行',
+    total: '合计',
+    history: '流量历史',
+    date: '日期',
+    noTrafficData: '暂无流量数据',
+    trafficHistory7d: '近 7 天流量',
+  },
   vpn: {
     title: 'VPN 管理',
     refresh: '刷新',

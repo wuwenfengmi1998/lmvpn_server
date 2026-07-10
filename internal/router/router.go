@@ -27,6 +27,8 @@ func Setup(r *gin.Engine) {
 		auth.GET("/me/sessions", handler.ListMySessions)
 		auth.DELETE("/me/sessions/:sessionId", handler.RevokeMySession)
 		auth.GET("/me/vpn/connections", handler.GetMyVpnConnections)
+		auth.GET("/me/traffic/today", handler.GetMyTrafficToday)
+		auth.GET("/me/traffic", handler.GetMyTrafficHistory)
 	}
 
 	admin := r.Group("/api/admin")
@@ -48,6 +50,10 @@ func Setup(r *gin.Engine) {
 		admin.POST("/vpn/reservations", handler.CreateVpnReservation)
 		admin.DELETE("/vpn/reservations/:id", handler.DeleteVpnReservation)
 		admin.DELETE("/vpn/clients/:id", handler.KickUserClient)
+
+		admin.GET("/traffic/today", handler.GetAdminTrafficToday)
+		admin.GET("/traffic/history", handler.GetAdminTrafficHistory)
+		admin.GET("/traffic/users/:id", handler.GetAdminUserTraffic)
 	}
 
 	distDir := http.Dir("./dist")

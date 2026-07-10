@@ -27,6 +27,7 @@ type VpnService struct {
 	switchx   *PacketSwitch
 	tun       *TUNInterface
 	tunDone   chan struct{}
+	flushDone chan struct{}
 	running   bool
 	startedAt time.Time
 	clients   map[*tunnelConn]struct{}
@@ -50,14 +51,57 @@ func (s *VpnService) StartedAt() time.Time {
 	return s.startedAt
 }
 
+const trafficFlushPeriod = 60 * time.Second
+
 func (s *VpnService) TotalLiveTraffic() (rx, tx int64) {
 	s.mu.RLock()
 	for c := range s.clients {
-		rx += c.rxBytes.Load()
-		tx += c.txBytes.Load()
+		rx += c.rxBytes.Load() - c.flushedRx.Load()
+		tx += c.txBytes.Load() - c.flushedTx.Load()
 	}
 	s.mu.RUnlock()
 	return
+}
+
+func (s *VpnService) UserLiveTraffic(userID uint) (rx, tx int64) {
+	s.mu.RLock()
+	for c := range s.clients {
+		if c.user.ID == userID {
+			rx += c.rxBytes.Load() - c.flushedRx.Load()
+			tx += c.txBytes.Load() - c.flushedTx.Load()
+		}
+	}
+	s.mu.RUnlock()
+	return
+}
+
+func (s *VpnService) trafficFlusher() {
+	ticker := time.NewTicker(trafficFlushPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.flushAllTraffic()
+		case <-s.flushDone:
+			return
+		}
+	}
+}
+
+func (s *VpnService) flushAllTraffic() {
+	s.mu.RLock()
+	conns := make([]*tunnelConn, 0, len(s.clients))
+	for c := range s.clients {
+		conns = append(conns, c)
+	}
+	s.mu.RUnlock()
+
+	for _, c := range conns {
+		rx, tx := c.flushDelta()
+		if rx > 0 || tx > 0 {
+			recordTraffic(c.user.ID, rx, tx)
+		}
+	}
 }
 
 func (s *VpnService) Settings() model.VpnSetting {
@@ -150,11 +194,13 @@ func (s *VpnService) ApplySettings(settings model.VpnSetting, reservations4, res
 	s.switchx = NewPacketSwitch(settings.AllowClientToClient)
 	s.tun = tun
 	s.tunDone = make(chan struct{})
+	s.flushDone = make(chan struct{})
 	s.running = true
 	s.startedAt = time.Now()
 	s.mu.Unlock()
 
 	go s.serveTUN()
+	go s.trafficFlusher()
 
 	subnet4 := ipNet.String()
 	var subnet6Str string
@@ -205,10 +251,21 @@ func (s *VpnService) Stop() error {
 	s.running = false
 	tun := s.tun
 	done := s.tunDone
+	flushDone := s.flushDone
+	s.flushDone = nil
 	clients := s.clients
 	s.clients = make(map[*tunnelConn]struct{})
 	s.mu.Unlock()
 
+	if flushDone != nil {
+		close(flushDone)
+	}
+	for c := range clients {
+		rx, tx := c.flushDelta()
+		if rx > 0 || tx > 0 {
+			recordTraffic(c.user.ID, rx, tx)
+		}
+	}
 	for c := range clients {
 		c.close()
 	}
@@ -379,6 +436,8 @@ type ClientInfo struct {
 	IP          string `json:"ip"`
 	IP6         string `json:"ip6,omitempty"`
 	ConnectedAt string `json:"connected_at"`
+	RxBytes     int64  `json:"rx_bytes"`
+	TxBytes     int64  `json:"tx_bytes"`
 }
 
 func (s *VpnService) KickUser(userID uint) int {

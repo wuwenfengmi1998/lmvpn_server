@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import TrafficChart from '@/components/TrafficChart.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -25,9 +26,34 @@ interface ClientInfo {
   ip: string
   ip6?: string
   connected_at: string
+  rx_bytes: number
+  tx_bytes: number
 }
 const vpnClients = ref<ClientInfo[]>([])
 const kickError = ref('')
+
+interface UserTraffic {
+  user_id: number
+  username: string
+  rx_bytes: number
+  tx_bytes: number
+  total_bytes: number
+}
+const userTrafficToday = ref<UserTraffic[]>([])
+
+interface TrafficRecord {
+  date: string
+  rx_bytes: number
+  tx_bytes: number
+}
+const siteTraffic7d = ref<TrafficRecord[]>([])
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i]
+}
 
 function formatUptime(seconds: number): string {
   if (seconds <= 0) return '0m'
@@ -82,6 +108,28 @@ async function fetchVpnStatus() {
   } catch {}
 }
 
+async function fetchTrafficToday() {
+  try {
+    const res = await fetch('/api/admin/traffic/today', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    userTrafficToday.value = (data.users || []).sort((a: UserTraffic, b: UserTraffic) => b.total_bytes - a.total_bytes)
+  } catch {}
+}
+
+async function fetchSiteTraffic7d() {
+  try {
+    const res = await fetch('/api/admin/traffic/history?days=7', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    siteTraffic7d.value = data.records || []
+  } catch {}
+}
+
 async function handleKick(userId: number, username: string) {
   kickError.value = ''
   if (userId === authStore.user?.id) {
@@ -107,9 +155,12 @@ onMounted(async () => {
   fetchUserCount()
   fetchStats()
   fetchVpnStatus()
+  fetchTrafficToday()
+  fetchSiteTraffic7d()
   statsTimer = setInterval(() => {
     fetchStats()
     fetchVpnStatus()
+    fetchTrafficToday()
   }, 30000)
 })
 
@@ -167,18 +218,22 @@ function handleStatClick(route: string) {
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
+            <th class="px-6 py-3 text-right font-medium text-gray-500 dark:text-gray-400">{{ t('traffic.upload') }}</th>
+            <th class="px-6 py-3 text-right font-medium text-gray-500 dark:text-gray-400">{{ t('traffic.download') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!vpnClients.length">
-            <td colspan="5" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
+            <td colspan="7" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
           </tr>
           <tr v-for="(c, i) in vpnClients" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
             <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ c.username }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '-' }}</td>
             <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>
+            <td class="px-6 py-3 text-right text-gray-700 dark:text-gray-300 tabular-nums">{{ formatBytes(c.rx_bytes) }}</td>
+            <td class="px-6 py-3 text-right text-gray-700 dark:text-gray-300 tabular-nums">{{ formatBytes(c.tx_bytes) }}</td>
             <td class="px-6 py-3">
               <button
                 class="px-3 py-1 text-xs rounded-md font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 transition-colors"
@@ -191,6 +246,36 @@ function handleStatClick(route: string) {
         </tbody>
       </table>
       <p v-if="kickError" class="text-sm text-red-500 px-6 pb-4">{{ kickError }}</p>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('traffic.trafficHistory7d') }}</h3>
+      <TrafficChart :records="siteTraffic7d" />
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white p-6 pb-4">{{ t('traffic.userTrafficToday') }}</h3>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('common.username') }}</th>
+            <th class="px-6 py-3 text-right font-medium text-gray-500 dark:text-gray-400">{{ t('traffic.upload') }}</th>
+            <th class="px-6 py-3 text-right font-medium text-gray-500 dark:text-gray-400">{{ t('traffic.download') }}</th>
+            <th class="px-6 py-3 text-right font-medium text-gray-500 dark:text-gray-400">{{ t('traffic.total') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="!userTrafficToday.length">
+            <td colspan="4" class="px-6 py-6 text-center text-gray-400">{{ t('traffic.noTrafficData') }}</td>
+          </tr>
+          <tr v-for="(u, i) in userTrafficToday" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
+            <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ u.username }}</td>
+            <td class="px-6 py-3 text-right text-gray-700 dark:text-gray-300 tabular-nums">{{ formatBytes(u.rx_bytes) }}</td>
+            <td class="px-6 py-3 text-right text-gray-700 dark:text-gray-300 tabular-nums">{{ formatBytes(u.tx_bytes) }}</td>
+            <td class="px-6 py-3 text-right text-gray-900 dark:text-white font-medium tabular-nums">{{ formatBytes(u.total_bytes) }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
