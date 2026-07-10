@@ -22,6 +22,7 @@ type vpnSettingsResponse struct {
 	AllowClientToClient bool   `json:"allow_client_to_client"`
 	DoLocalIPConfig     bool   `json:"do_local_ip_config"`
 	DoRemoteIPConfig    bool   `json:"do_remote_ip_config"`
+	MaxConnsPerUser     int    `json:"max_conns_per_user"`
 }
 
 type updateVpnSettingsRequest struct {
@@ -33,6 +34,7 @@ type updateVpnSettingsRequest struct {
 	AllowClientToClient *bool   `json:"allow_client_to_client"`
 	DoLocalIPConfig     *bool   `json:"do_local_ip_config"`
 	DoRemoteIPConfig    *bool   `json:"do_remote_ip_config"`
+	MaxConnsPerUser     *int    `json:"max_conns_per_user"`
 }
 
 func loadVpnSettings() (model.VpnSetting, error) {
@@ -131,6 +133,7 @@ func GetVpnSettings(c *gin.Context) {
 		AllowClientToClient: s.AllowClientToClient,
 		DoLocalIPConfig:     s.DoLocalIPConfig,
 		DoRemoteIPConfig:    s.DoRemoteIPConfig,
+		MaxConnsPerUser:     s.MaxConnsPerUser,
 	})
 }
 
@@ -184,6 +187,13 @@ func UpdateVpnSettings(c *gin.Context) {
 	}
 	if req.DoRemoteIPConfig != nil {
 		s.DoRemoteIPConfig = *req.DoRemoteIPConfig
+	}
+	if req.MaxConnsPerUser != nil {
+		if *req.MaxConnsPerUser < 1 || *req.MaxConnsPerUser > 1000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "每用户最大连接数范围 1-1000"})
+			return
+		}
+		s.MaxConnsPerUser = *req.MaxConnsPerUser
 	}
 
 	if err := db.DB.Save(&s).Error; err != nil {

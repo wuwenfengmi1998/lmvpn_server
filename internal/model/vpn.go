@@ -14,6 +14,7 @@ type VpnSetting struct {
 	AllowClientToClient bool   `gorm:"default:false"`
 	DoLocalIPConfig     bool   `gorm:"default:true"`
 	DoRemoteIPConfig    bool   `gorm:"default:true"`
+	MaxConnsPerUser     int    `gorm:"default:30"`
 	UpdatedAt           time.Time
 }
 

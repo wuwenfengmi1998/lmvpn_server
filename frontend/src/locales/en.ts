@@ -133,6 +133,7 @@ export default {
     serverConfigTunIp: 'Server Configures TUN IP',
     autoConfig: 'Auto',
     manual: 'Manual',
+    maxConnsPerUser: 'Max Connections Per User',
     saveSettings: 'Save Settings',
     saveSuccess: 'Saved successfully',
     user: 'User',
@@ -168,7 +169,7 @@ export default {
       'Admin and user roles with full user CRUD, enable/disable, and password changes, plus self-protection rules.',
     multiDevice: 'Multi-Device Concurrent',
     multiDeviceDesc:
-      'Up to 3 concurrent connections per user with automatic tunnel IP assignment.',
+      'Supports multi-device concurrent connections per user, configurable in admin panel.',
     dualStack: 'IPv4/IPv6 Dual-Stack',
     dualStackDesc:
       'Supports both IPv4 and IPv6 subnets with NAT dual-stack forwarding and anti-spoofing.',

@@ -16,6 +16,7 @@ interface Settings {
   allow_client_to_client: boolean
   do_local_ip_config: boolean
   do_remote_ip_config: boolean
+  max_conns_per_user: number
 }
 interface ClientInfo {
   user_id: number
@@ -83,6 +84,7 @@ const form = ref<Settings>({
   allow_client_to_client: false,
   do_local_ip_config: true,
   do_remote_ip_config: true,
+  max_conns_per_user: 30,
 })
 
 async function fetchSettings() {
@@ -402,6 +404,10 @@ onMounted(() => {
             <option :value="true">{{ t('vpn.autoConfig') }}</option>
             <option :value="false">{{ t('vpn.manual') }}</option>
           </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('vpn.maxConnsPerUser') }}</label>
+          <input v-model.number="form.max_conns_per_user" type="number" min="1" max="1000" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
         </div>
       </div>
       <div class="flex items-center gap-4 mt-6">

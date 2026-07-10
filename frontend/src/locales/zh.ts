@@ -132,6 +132,7 @@ export default {
     serverConfigTunIp: '服务端配置 TUN IP',
     autoConfig: '自动配置',
     manual: '手动',
+    maxConnsPerUser: '每用户最大连接数',
     saveSettings: '保存设置',
     saveSuccess: '保存成功',
     user: '用户',
@@ -165,7 +166,7 @@ export default {
     userManageDesc:
       '管理员与普通角色，支持用户增删改、启用禁用与改密，内置自保护规则。',
     multiDevice: '多设备并发',
-    multiDeviceDesc: '每用户最多 3 个并发连接，自动分配隧道 IP 地址。',
+    multiDeviceDesc: '每用户支持多设备并发连接，可在管理后台配置上限。',
     dualStack: 'IPv4/IPv6 双栈',
     dualStackDesc: '同时支持 IPv4 与 IPv6 子网，NAT 双栈转发与源地址反欺骗。',
     reservation: '静态 IP 预留',

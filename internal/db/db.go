@@ -105,21 +105,30 @@ func seedDefaultAdmin(cfg *config.DatabaseConfig) error {
 func seedDefaultVpnSettings() error {
 	var s model.VpnSetting
 	if err := DB.First(&s, model.VpnSettingSingletonID).Error; err == nil {
+		needSave := false
 		if s.Subnet6 == "" {
 			s.Subnet6 = "fd00:dead:beef::/112"
+			needSave = true
+		}
+		if s.MaxConnsPerUser == 0 {
+			s.MaxConnsPerUser = 30
+			needSave = true
+		}
+		if needSave {
 			DB.Save(&s)
 		}
 		return nil
 	}
 	s = model.VpnSetting{
-		ID:               model.VpnSettingSingletonID,
-		Enabled:          false,
-		Subnet:           "192.168.77.0/24",
-		Subnet6:          "fd00:dead:beef::/112",
-		MTU:              1420,
-		InterfaceName:    "",
-		DoLocalIPConfig:  true,
-		DoRemoteIPConfig: true,
+		ID:                model.VpnSettingSingletonID,
+		Enabled:           false,
+		Subnet:            "192.168.77.0/24",
+		Subnet6:           "fd00:dead:beef::/112",
+		MTU:               1420,
+		InterfaceName:     "",
+		DoLocalIPConfig:   true,
+		DoRemoteIPConfig:  true,
+		MaxConnsPerUser:   30,
 	}
 	return DB.Create(&s).Error
 }

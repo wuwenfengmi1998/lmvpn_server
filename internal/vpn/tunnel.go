@@ -21,8 +21,7 @@ const (
 	writeTimeout    = 10 * time.Second
 	readyTimeout    = 30 * time.Second
 	pingPeriod      = 30 * time.Second
-	maxMessageSize  = 1 << 20
-	maxConnsPerUser = 3
+	maxMessageSize = 1 << 20
 )
 
 var (
@@ -99,7 +98,11 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 	}
 
 	activeConnsMu.Lock()
-	if activeConns[user.ID] >= maxConnsPerUser {
+	maxConns := VPN.Settings().MaxConnsPerUser
+	if maxConns <= 0 {
+		maxConns = 30
+	}
+	if activeConns[user.ID] >= maxConns {
 		activeConnsMu.Unlock()
 		_ = sendJSON(conn, controlMessage{Type: "error", Message: "连接数已达上限"})
 		return

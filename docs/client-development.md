@@ -780,7 +780,7 @@ ip6tables -t nat -A POSTROUTING -s <VPN_V6_SUBNET> -o <物理网卡> -j MASQUERA
 | `readyTimeout` | 30s | 等待 ready 超时 | `internal/vpn/tunnel.go:19` |
 | `pingPeriod` | 30s | Ping 周期 | `internal/vpn/tunnel.go:20` |
 | `maxMessageSize` | 1 MB | 单消息上限 | `internal/vpn/tunnel.go:21` |
-| `maxConnsPerUser` | 3 | 单用户并发连接上限 | `internal/vpn/tunnel.go:22` |
+| `maxConnsPerUser` | 30（可配置） | 单用户并发连接上限 | `internal/model/vpn.go` (`VpnSetting.MaxConnsPerUser`) |
 | `tokenExpire` | 24h | JWT 有效期 | `internal/middleware/auth.go:15` |
 | 登录限流 | 5/min·IP | `/api/login` 限流 | `internal/middleware/ratelimit.go:76` |
 | 密码认证限流 | 5/min·(IP+用户名) | WebSocket 密码认证限流 | `internal/vpn/auth.go:15,41` |
