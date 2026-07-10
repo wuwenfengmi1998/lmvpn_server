@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
 
 const username = ref('')
 const password = ref('')
 const error = ref('')
+const successMsg = ref(route.query.msg === 'password_changed' ? t('login.passwordChanged') : '')
 const loading = ref(false)
 
 async function handleLogin() {
@@ -71,6 +73,7 @@ async function handleLogin() {
           />
         </div>
         <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+        <p v-if="successMsg" class="text-sm text-green-500">{{ successMsg }}</p>
         <button
           type="submit"
           :disabled="loading"

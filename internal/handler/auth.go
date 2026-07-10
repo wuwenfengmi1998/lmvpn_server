@@ -8,6 +8,7 @@ import (
 	"lmvpn/internal/db"
 	"lmvpn/internal/middleware"
 	"lmvpn/internal/model"
+	"lmvpn/internal/vpn"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -143,8 +144,11 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
-	sessionID, _ := c.Get("session_id")
-	db.DB.Model(&model.Session{}).Where("user_id = ? AND session_id != ?", userID, sessionID).Update("invalid", true)
+	db.DB.Model(&model.Session{}).Where("user_id = ?", userID).Update("invalid", true)
+
+	if vpn.VPN != nil && vpn.VPN.Running() {
+		vpn.VPN.KickUser(user.ID)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "密码修改成功"})
 }

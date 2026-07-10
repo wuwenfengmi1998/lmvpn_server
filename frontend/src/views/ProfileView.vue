@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const router = useRouter()
 const { t } = useI18n()
 
 onMounted(async () => {
@@ -49,6 +51,8 @@ async function handleChangePassword() {
       throw new Error(data.error || t('profile.passwordChangeFailed'))
     }
     showPasswordModal.value = false
+    authStore.logout()
+    router.push({ name: 'login', query: { msg: 'password_changed' } })
   } catch (e: any) {
     passwordError.value = e.message || t('profile.passwordChangeFailed')
   } finally {

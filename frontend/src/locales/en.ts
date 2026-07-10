@@ -45,6 +45,7 @@ export default {
     loginFailed: 'Login failed',
     loggingIn: 'Logging in...',
     loginButton: 'Login',
+    passwordChanged: 'Password changed, please log in again',
   },
   profile: {
     title: 'Profile',

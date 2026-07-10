@@ -45,6 +45,7 @@ export default {
     loginFailed: '登录失败',
     loggingIn: '登录中...',
     loginButton: '登录',
+    passwordChanged: '密码已修改，请重新登录',
   },
   profile: {
     title: '用户信息',
