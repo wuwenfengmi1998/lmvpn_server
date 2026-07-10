@@ -150,8 +150,9 @@ export default {
     selectUserAndIp: 'Please select a user and fill in at least one IP address',
     confirmDeleteReservation: 'Delete this reservation?',
     kick: 'Kick',
-    confirmKick: 'Disconnect all VPN connections for user {username}?',
+    confirmKick: 'Disconnect all VPN connections for user {username} and disable their account?',
     kickFailed: 'Failed to kick user',
+    cannotKickSelf: 'Cannot kick yourself. To disconnect your own devices, please change your password.',
   },
   footer: {
     lastCommit: 'Last commit',

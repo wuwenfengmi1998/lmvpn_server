@@ -149,8 +149,9 @@ export default {
     selectUserAndIp: '请选择用户并至少填写一个 IP 地址',
     confirmDeleteReservation: '确认删除该预留？',
     kick: '踢下线',
-    confirmKick: '确定要断开用户 {username} 的所有 VPN 连接吗？',
+    confirmKick: '确定要断开用户 {username} 的所有 VPN 连接并禁用其账号吗？',
     kickFailed: '踢下线失败',
+    cannotKickSelf: '不能踢自己下线，如需断开自己的设备请修改密码',
   },
   footer: {
     lastCommit: '最后提交',

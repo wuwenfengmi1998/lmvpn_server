@@ -421,11 +421,19 @@ func KickUserClient(c *gin.Context) {
 		return
 	}
 
-	if vpn.VPN == nil || !vpn.VPN.Running() {
-		c.JSON(http.StatusOK, gin.H{"message": "VPN 服务未运行", "kicked": 0})
+	currentUserID, _ := c.Get("user_id")
+	if uint(id) == currentUserID.(uint) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不能踢自己下线，如需断开自己的设备请修改密码"})
 		return
 	}
 
-	n := vpn.VPN.KickUser(uint(id))
-	c.JSON(http.StatusOK, gin.H{"message": "已断开用户连接", "kicked": n})
+	n := 0
+	if vpn.VPN != nil && vpn.VPN.Running() {
+		n = vpn.VPN.KickUser(uint(id))
+	}
+
+	db.DB.Model(&user).Update("status", 0)
+	db.DB.Model(&model.Session{}).Where("user_id = ?", id).Update("invalid", true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "已断开用户连接并禁用账号", "kicked": n})
 }

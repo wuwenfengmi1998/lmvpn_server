@@ -83,8 +83,12 @@ async function fetchVpnStatus() {
 }
 
 async function handleKick(userId: number, username: string) {
-  if (!confirm(t('vpn.confirmKick', { username }))) return
   kickError.value = ''
+  if (userId === authStore.user?.id) {
+    kickError.value = t('vpn.cannotKickSelf')
+    return
+  }
+  if (!confirm(t('vpn.confirmKick', { username }))) return
   try {
     const res = await fetch(`/api/admin/vpn/clients/${userId}`, {
       method: 'DELETE',
