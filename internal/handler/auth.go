@@ -80,7 +80,7 @@ func Login(c *gin.Context) {
 	session := model.Session{
 		SessionID: sessionID,
 		UserID:    user.ID,
-		IP:        c.ClientIP(),
+		IP:        middleware.GetRealIP(c),
 		UserAgent: c.GetHeader("User-Agent"),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}

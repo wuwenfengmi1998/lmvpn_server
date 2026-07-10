@@ -12,6 +12,7 @@ const { t } = useI18n()
 interface VpnConnection {
   ip: string
   ip6?: string
+  real_ip: string
   connected_at: string
 }
 const vpnConnections = ref<VpnConnection[]>([])
@@ -155,6 +156,7 @@ async function handleChangePassword() {
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.realIp') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
@@ -162,9 +164,10 @@ async function handleChangePassword() {
         </thead>
         <tbody>
           <tr v-if="!vpnConnections.length">
-            <td colspan="3" class="px-6 py-6 text-center text-gray-400">{{ t('profile.noConnections') }}</td>
+            <td colspan="4" class="px-6 py-6 text-center text-gray-400">{{ t('profile.noConnections') }}</td>
           </tr>
           <tr v-for="(c, i) in vpnConnections" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.real_ip || '-' }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '-' }}</td>
             <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>

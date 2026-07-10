@@ -31,6 +31,7 @@ var upgrader = websocket.Upgrader{
 
 func HandleWS(c *gin.Context) {
 	tokenStr := c.Query("token")
+	realIP := middleware.GetRealIP(c)
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -51,11 +52,11 @@ func HandleWS(c *gin.Context) {
 			conn.Close()
 			return
 		}
-		runTunnel(conn, &u)
+		runTunnel(conn, &u, realIP)
 		return
 	}
 
-	user, err := authenticate(conn, db.DB, c.ClientIP())
+	user, err := authenticate(conn, db.DB, realIP)
 	if err != nil {
 		log.Printf("认证读取失败: %v", err)
 		conn.Close()
@@ -65,5 +66,5 @@ func HandleWS(c *gin.Context) {
 		return
 	}
 
-	runTunnel(conn, user)
+	runTunnel(conn, user, realIP)
 }

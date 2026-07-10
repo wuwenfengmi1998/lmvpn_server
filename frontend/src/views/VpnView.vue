@@ -23,6 +23,7 @@ interface ClientInfo {
   username: string
   ip: string
   ip6?: string
+  real_ip: string
   connected_at: string
 }
 interface Status {

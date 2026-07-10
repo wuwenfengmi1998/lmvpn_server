@@ -25,6 +25,7 @@ interface ClientInfo {
   username: string
   ip: string
   ip6?: string
+  real_ip: string
   connected_at: string
   rx_bytes: number
   tx_bytes: number
@@ -215,6 +216,7 @@ function handleStatClick(route: string) {
         <thead>
           <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.user') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.realIp') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
             <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
@@ -225,10 +227,11 @@ function handleStatClick(route: string) {
         </thead>
         <tbody>
           <tr v-if="!vpnClients.length">
-            <td colspan="7" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
+            <td colspan="8" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
           </tr>
           <tr v-for="(c, i) in vpnClients" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
             <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ c.username }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.real_ip || '-' }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
             <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '-' }}</td>
             <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>

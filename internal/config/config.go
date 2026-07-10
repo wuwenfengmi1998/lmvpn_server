@@ -10,12 +10,14 @@ import (
 )
 
 type WebConfig struct {
-	Port        int    `yaml:"port"`
-	Sock        string `yaml:"sock"`
-	SockMode    string `yaml:"sock_mode"`
-	SockGroup   string `yaml:"sock_group"`
-	SockDirMode string `yaml:"sock_dir_mode"`
-	JWTSecret   string `yaml:"jwt_secret"`
+	Port          int      `yaml:"port"`
+	Sock          string   `yaml:"sock"`
+	SockMode      string   `yaml:"sock_mode"`
+	SockGroup     string   `yaml:"sock_group"`
+	SockDirMode   string   `yaml:"sock_dir_mode"`
+	JWTSecret     string   `yaml:"jwt_secret"`
+	RealIPHeaders []string `yaml:"real_ip_headers"`
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 type DatabaseConfig struct {
@@ -36,6 +38,7 @@ func defaultConfig() *Config {
 			Sock:        "web.sock",
 			SockMode:    "0666",
 			SockDirMode: "0755",
+			RealIPHeaders: []string{"CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"},
 		},
 		Database: DatabaseConfig{
 			Type: "sqlite",

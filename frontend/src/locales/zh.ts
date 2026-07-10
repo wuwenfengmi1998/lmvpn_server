@@ -153,6 +153,7 @@ export default {
     user: '用户',
     ipv4: 'IPv4',
     ipv6: 'IPv6',
+    realIp: '真实 IP',
     connectTime: '连接时间',
     noOnlineClients: '暂无在线客户端',
     staticIpReservation: '静态 IP 预留',

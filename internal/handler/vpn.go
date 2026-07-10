@@ -211,6 +211,7 @@ func UpdateVpnSettings(c *gin.Context) {
 type myVpnConnection struct {
 	IP          string `json:"ip"`
 	IP6         string `json:"ip6,omitempty"`
+	RealIP      string `json:"real_ip"`
 	ConnectedAt string `json:"connected_at"`
 }
 
@@ -232,6 +233,7 @@ func GetMyVpnConnections(c *gin.Context) {
 				connections = append(connections, myVpnConnection{
 					IP:          ci.IP,
 					IP6:         ci.IP6,
+					RealIP:      ci.RealIP,
 					ConnectedAt: ci.ConnectedAt,
 				})
 			}

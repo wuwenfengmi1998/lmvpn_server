@@ -35,6 +35,7 @@ type tunnelConn struct {
 	svc         *VpnService
 	assignedIP  net.IP
 	assignedIP6 net.IP
+	realIP      string
 	connectedAt time.Time
 	writeMu     sync.Mutex
 	ready       atomic.Bool
@@ -91,6 +92,7 @@ func (c *tunnelConn) info() ClientInfo {
 		UserID:      c.user.ID,
 		Username:    c.user.Username,
 		IP:          c.assignedIP.String(),
+		RealIP:      c.realIP,
 		ConnectedAt: c.connectedAt.Format("2006-01-02 15:04:05"),
 		RxBytes:     c.rxBytes.Load(),
 		TxBytes:     c.txBytes.Load(),
@@ -101,7 +103,7 @@ func (c *tunnelConn) info() ClientInfo {
 	return ci
 }
 
-func runTunnel(conn *websocket.Conn, user *model.User) {
+func runTunnel(conn *websocket.Conn, user *model.User, realIP string) {
 	defer conn.Close()
 
 	if VPN == nil || !VPN.Running() {
@@ -143,6 +145,7 @@ func runTunnel(conn *websocket.Conn, user *model.User) {
 		svc:         VPN,
 		assignedIP:  ip4,
 		assignedIP6: ip6,
+		realIP:      realIP,
 		connectedAt: time.Now(),
 	}
 

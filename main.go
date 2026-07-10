@@ -26,6 +26,7 @@ func main() {
 	}
 
 	middleware.SetJWTSecret(cfg.Web.JWTSecret)
+	middleware.SetRealIPHeaders(cfg.Web.RealIPHeaders)
 
 	if err := db.Init(&cfg.Database); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
@@ -37,6 +38,12 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	if len(cfg.Web.TrustedProxies) > 0 {
+		_ = r.SetTrustedProxies(cfg.Web.TrustedProxies)
+	} else {
+		_ = r.SetTrustedProxies(nil)
+	}
 
 	router.Setup(r)
 

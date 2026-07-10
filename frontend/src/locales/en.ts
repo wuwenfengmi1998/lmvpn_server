@@ -154,6 +154,7 @@ export default {
     user: 'User',
     ipv4: 'IPv4',
     ipv6: 'IPv6',
+    realIp: 'Real IP',
     connectTime: 'Connected At',
     noOnlineClients: 'No online clients',
     staticIpReservation: 'Static IP Reservation',

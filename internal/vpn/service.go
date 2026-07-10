@@ -435,6 +435,7 @@ type ClientInfo struct {
 	Username    string `json:"username"`
 	IP          string `json:"ip"`
 	IP6         string `json:"ip6,omitempty"`
+	RealIP      string `json:"real_ip"`
 	ConnectedAt string `json:"connected_at"`
 	RxBytes     int64  `json:"rx_bytes"`
 	TxBytes     int64  `json:"tx_bytes"`
