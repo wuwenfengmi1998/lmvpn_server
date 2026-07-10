@@ -202,21 +202,6 @@ async function handleDeleteResv(id: number) {
   }
 }
 
-async function handleKick(userId: number, username: string) {
-  if (!confirm(t('vpn.confirmKick', { username }))) return
-  try {
-    const res = await fetch(`/api/admin/vpn/clients/${userId}`, {
-      method: 'DELETE',
-      headers: authHeader(),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || t('vpn.kickFailed'))
-    await fetchStatus()
-  } catch (e: any) {
-    error.value = e.message
-  }
-}
-
 function checkTunCreate(): boolean | null {
   if (!diag.value) return null
   return diag.value.tun_create.startsWith('ok')
@@ -429,41 +414,6 @@ onMounted(() => {
         </button>
         <span v-if="saveMsg" :class="saveOk ? 'text-green-500' : 'text-red-500'" class="text-sm">{{ saveMsg }}</span>
       </div>
-    </div>
-
-    <!-- 在线客户端 -->
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white p-6 pb-4">{{ t('vpn.onlineClients') }}</h3>
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.user') }}</th>
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
-            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('common.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="!status?.clients?.length">
-            <td colspan="5" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
-          </tr>
-          <tr v-for="(c, i) in status?.clients" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
-            <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ c.username }}</td>
-            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
-            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '—' }}</td>
-            <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>
-            <td class="px-6 py-3">
-              <button
-                class="px-3 py-1 text-xs rounded-md font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 transition-colors"
-                @click="handleKick(c.user_id, c.username)"
-              >
-                {{ t('vpn.kick') }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
     </div>
 
     <!-- 静态预留 -->

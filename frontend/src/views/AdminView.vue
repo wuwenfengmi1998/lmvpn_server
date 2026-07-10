@@ -19,6 +19,16 @@ const stats = ref([
 const userCount = ref<number | null>(null)
 let statsTimer: ReturnType<typeof setInterval> | null = null
 
+interface ClientInfo {
+  user_id: number
+  username: string
+  ip: string
+  ip6?: string
+  connected_at: string
+}
+const vpnClients = ref<ClientInfo[]>([])
+const kickError = ref('')
+
 function formatUptime(seconds: number): string {
   if (seconds <= 0) return '0m'
   const d = Math.floor(seconds / 86400)
@@ -61,11 +71,42 @@ async function fetchStats() {
   } catch {}
 }
 
+async function fetchVpnStatus() {
+  try {
+    const res = await fetch('/api/admin/vpn/status', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    vpnClients.value = data.clients || []
+  } catch {}
+}
+
+async function handleKick(userId: number, username: string) {
+  if (!confirm(t('vpn.confirmKick', { username }))) return
+  kickError.value = ''
+  try {
+    const res = await fetch(`/api/admin/vpn/clients/${userId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || t('vpn.kickFailed'))
+    await fetchVpnStatus()
+  } catch (e: any) {
+    kickError.value = e.message
+  }
+}
+
 onMounted(async () => {
   await authStore.fetchUser()
   fetchUserCount()
   fetchStats()
-  statsTimer = setInterval(fetchStats, 30000)
+  fetchVpnStatus()
+  statsTimer = setInterval(() => {
+    fetchStats()
+    fetchVpnStatus()
+  }, 30000)
 })
 
 onUnmounted(() => {
@@ -74,11 +115,6 @@ onUnmounted(() => {
 
 function handleStatClick(route: string) {
   if (route) router.push(route)
-}
-
-function handleLogout() {
-  authStore.logout()
-  router.push('/')
 }
 </script>
 
@@ -118,11 +154,39 @@ function handleLogout() {
       </div>
     </div>
 
-    <button
-      class="px-6 py-2.5 rounded-lg font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
-      @click="handleLogout"
-    >
-      {{ t('admin.logoutButton') }}
-    </button>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white p-6 pb-4">{{ t('vpn.onlineClients') }}</h3>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.user') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv4') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.ipv6') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('vpn.connectTime') }}</th>
+            <th class="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="!vpnClients.length">
+            <td colspan="5" class="px-6 py-6 text-center text-gray-400">{{ t('vpn.noOnlineClients') }}</td>
+          </tr>
+          <tr v-for="(c, i) in vpnClients" :key="i" class="border-b border-gray-100 dark:border-gray-700/50">
+            <td class="px-6 py-3 text-gray-900 dark:text-white font-medium">{{ c.username }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip }}</td>
+            <td class="px-6 py-3 text-gray-700 dark:text-gray-300">{{ c.ip6 || '-' }}</td>
+            <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ c.connected_at }}</td>
+            <td class="px-6 py-3">
+              <button
+                class="px-3 py-1 text-xs rounded-md font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 transition-colors"
+                @click="handleKick(c.user_id, c.username)"
+              >
+                {{ t('vpn.kick') }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-if="kickError" class="text-sm text-red-500 px-6 pb-4">{{ kickError }}</p>
+    </div>
   </div>
 </template>
