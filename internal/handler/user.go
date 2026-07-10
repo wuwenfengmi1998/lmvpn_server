@@ -7,6 +7,7 @@ import (
 
 	"lmvpn/internal/db"
 	"lmvpn/internal/model"
+	"lmvpn/internal/vpn"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -192,6 +193,9 @@ func UpdateUser(c *gin.Context) {
 
 	if req.Password != "" || req.Role != "" || req.Status != nil {
 		db.DB.Model(&model.Session{}).Where("user_id = ?", id).Update("invalid", true)
+		if vpn.VPN != nil && vpn.VPN.Running() {
+			vpn.VPN.KickUser(uint(id))
+		}
 	}
 
 	db.DB.First(&user, id)
